@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Performance & Compliance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0D1A2E;
+        }
+        .main-bg { background-color: #10213E; }
+        .card-bg { background-color: #1A2C47; border: 1px solid #2A446D; }
+        .modal-bg { background-color: #1A2C47; border: 1px solid #38BDF8; }
+        .text-main { color: #E0EFFF; }
+        .text-secondary { color: #A0B3D1; }
+        .accent-color { color: #38BDF8; }
+        .shadow-glow { box-shadow: 0 0 15px rgba(56, 189, 248, 0.1); }
+        .kpi-card-interactive { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .kpi-card-interactive:hover { transform: translateY(-4px); box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
+        .time-selector button {
+            padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500;
+            background-color: #2A446D; transition: background-color 0.2s;
+        }
+        .time-selector-stacked button { width: 45px; text-align: center; }
+        .time-selector button.active { background-color: #38BDF8; color: #10213E; }
+        .vessel-link { cursor: pointer; font-weight: 600; transition: color 0.2s; }
+        .vessel-link:hover { color: #38BDF8; }
+        .alarm-bell { transition: color 0.3s; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #10213E; }
+        ::-webkit-scrollbar-thumb { background: #2A446D; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #38BDF8; }
+        .form-input {
+            background-color: #10213E;
+            border: 1px solid #2A446D;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0.75rem;
+            color: #E0EFFF;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #38BDF8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
+        }
+        .tooltip-container { position: relative; display: inline-block; }
+        .tooltip-text {
+            visibility: hidden;
+            width: 280px;
+            background-color: #10213E;
+            color: #A0B3D1;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -140px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid #2A446D;
+            font-size: 12px;
+            font-weight: normal;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        #fleet-sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        #fleet-sidebar.minimized {
+            width: 280px;
+        }
+        #fleet-sidebar:not(.minimized) {
+            width: 420px;
+        }
+    </style>
+</head>
+<body class="text-main">
+
+    <!-- Fleet Dashboard View -->
+    <div id="fleet-dashboard-view">
+        <div class="min-h-screen flex flex-col">
+            <!-- Header -->
+            <header class="main-bg p-4 shadow-lg flex justify-between items-center border-b border-gray-700">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold">Fleet Performance & Compliance Dashboard</h1>
+                    <p class="text-secondary text-sm">Real-time operational and regulatory overview</p>
+                </div>
+                <div class="flex items-center space-x-6">
+                     <button id="manual-entry-btn" class="text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center space-x-2">
+                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                         <span>Manual Data Entry</span>
+                     </button>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <p id="system-time" class="font-mono text-sm"></p>
+                            <p id="system-date" class="text-secondary text-xs"></p>
+                        </div>
+                        <button id="alarm-bell-btn" class="relative text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6 alarm-bell" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="flex-grow p-4 md:p-6 lg:p-8 flex gap-6">
+                <div class="flex-grow flex flex-col gap-6">
+                    <!-- KPIs -->
+                    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div id="fuelCostCard" class="card-bg p-4 rounded-lg shadow-glow kpi-card-interactive flex flex-col justify-between">
+                            <div class="flex justify-between items-start"><h3 class="text-secondary text-sm font-medium pr-2">Fuel Cost</h3><div class="time-selector time-selector-stacked flex-shrink-0 flex flex-col space-y-1" data-target="fuel"><button data-period="YTD">YTD</button><button data-period="MTD">MTD</button></div></div>
+                            <div class="mt-2"><p id="fuelCostValue" class="text-xl xl:text-2xl font-bold text-white break-words"></p><p id="fuelCostTrend" class="text-sm flex items-center"></p></div>
+                        </div>
+                        <div id="co2Card" class="card-bg p-4 rounded-lg shadow-glow kpi-card-interactive flex flex-col justify-between">
+                            <div class="flex justify-between items-start"><h3 class="text-secondary text-sm font-medium pr-2">CO2 Emissions</h3><div class="time-selector time-selector-stacked flex-shrink-0 flex flex-col space-y-1" data-target="co2"><button data-period="YTD">YTD</button><button data-period="MTD">MTD</button></div></div>
+                            <div class="mt-2"><p id="co2Value" class="text-xl xl:text-2xl font-bold text-white break-words"></p><p id="co2Trend" class="text-sm flex items-center"></p></div>
+                        </div>
+                        <div class="card-bg p-4 rounded-lg shadow-glow flex flex-col justify-between">
+                            <div class="flex items-center space-x-1">
+                                <h3 class="text-secondary text-sm font-medium">Projected ETS Cost</h3>
+                                <div class="tooltip-container">
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    <span id="projected-cost-tooltip" class="tooltip-text"></span>
+                                </div>
+                            </div>
+                            <div class="mt-2"><p class="text-xl xl:text-2xl font-bold text-white break-words">€10,500,000</p><p class="text-sm text-secondary">For 2025 surrender</p></div>
+                        </div>
+                        <div class="card-bg p-4 rounded-lg shadow-glow flex flex-col justify-between"><h3 class="text-secondary text-sm font-medium">Avg. CII Rating</h3><div class="mt-2"><p class="text-4xl xl:text-5xl font-bold text-orange-400">C</p><p class="text-sm text-secondary">Fleet Average</p></div></div>
+                    </section>
+                    <!-- Regulation sections... -->
+                    <section class="card-bg p-6 rounded-lg shadow-glow flex flex-col">
+                        <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">EU ETS Management (2025)</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow">
+                            <div class="flex flex-col items-center justify-center p-4 rounded-lg bg-gray-900/20">
+                                <h3 class="text-lg font-semibold text-secondary mb-2">Allowance Position</h3>
+                                <div class="relative w-40 h-40">
+                                    <svg class="w-full h-full" viewBox="0 0 36 36"><path class="text-gray-700" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /><path id="ets-progress" class="accent-color" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /></svg>
+                                    <div id="ets-percentage" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl font-bold"></div>
+                                </div>
+                                <div class="text-center mt-3 text-sm space-y-1">
+                                    <p class="text-secondary">Owned: <span id="ets-owned-allowances" class="font-semibold text-main"></span></p>
+                                    <p class="text-secondary">Used: <span id="ets-used-allowances" class="font-semibold text-main"></span></p>
+                                    <p class="text-secondary border-t border-gray-700 pt-1 mt-1">Remaining: <span id="ets-remaining-allowances" class="font-semibold text-main"></span></p>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="flex items-center space-x-1">
+                                        <h3 class="text-lg font-semibold text-secondary">Financial Summary (MTM)</h3>
+                                        <button id="financial-summary-info-btn" class="focus:outline-none">
+                                            <svg class="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </button>
+                                    </div>
+                                    <div id="live-eua-price-container" class="text-right kpi-card-interactive" title="Click to see price chart">
+                                        <p class="text-sm font-bold text-white">Live EUA: <span id="live-eua-price">€70.00</span></p>
+                                        <p class="text-xs text-gray-500" id="eua-price-timestamp"></p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-gray-900/20 p-3 rounded-lg">
+                                        <h4 class="text-sm text-secondary">Accrued Liability</h4>
+                                        <p id="accrued-liability" class="text-lg font-bold"></p>
+                                    </div>
+                                     <div class="bg-gray-900/20 p-3 rounded-lg">
+                                        <h4 class="text-sm text-secondary">Value of Holdings</h4>
+                                        <p id="value-of-holdings" class="text-lg font-bold"></p>
+                                    </div>
+                                     <div class="bg-gray-900/20 p-3 rounded-lg">
+                                        <h4 class="text-sm text-secondary">Net Exposure</h4>
+                                        <p id="net-exposure" class="text-lg font-bold"></p>
+                                    </div>
+                                     <div class="bg-gray-900/20 p-3 rounded-lg">
+                                        <h4 class="text-sm text-secondary">Unrealized P&L</h4>
+                                        <p id="unrealized-pl" class="text-lg font-bold"></p>
+                                    </div>
+                                </div>
+                                 <div class="flex items-center space-x-1 mt-4 mb-2">
+                                    <h3 class="text-lg font-semibold text-secondary">Yearly Projection</h3>
+                                 </div>
+                                <div class="w-full h-32"><canvas id="etsProjectionChart"></canvas></div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div id="cii-distribution-card" class="card-bg p-6 rounded-lg shadow-glow kpi-card-interactive">
+                            <div class="flex justify-between items-start">
+                                <h2 class="text-lg font-bold mb-3">CII Rating Distribution</h2>
+                                <div id="cii-alarm-icon" class="hidden text-yellow-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                </div>
+                            </div>
+                            <div class="space-y-3" id="cii-distribution"></div>
+                        </div>
+                        <div id="fueleu-card" class="card-bg p-6 rounded-lg shadow-glow kpi-card-interactive">
+                            <h2 class="text-lg font-bold mb-3">FuelEU Maritime Compliance</h2>
+                            <p class="text-secondary mb-3 text-sm">Fleet average GHG intensity vs annual target.</p>
+                            <div class="w-full bg-gray-700 rounded-full h-4"><div class="bg-gradient-to-r from-teal-400 to-cyan-500 h-4 rounded-full" style="width: 75%;"></div></div>
+                            <div class="flex justify-between text-sm mt-2"><span class="text-teal-400 font-semibold">Current: 85.2 gCO2e/MJ</span><span class="text-gray-400">Target: 91.1</span></div>
+                            <p class="text-xs text-green-400 mt-2">Currently compliant</p>
+                        </div>
+                    </section>
+                </div>
+                <!-- Fleet Overview -->
+                <aside id="fleet-sidebar" class="card-bg p-6 rounded-lg shadow-glow flex flex-col minimized">
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                        <h2 class="text-xl font-bold">Fleet Overview</h2>
+                        <button id="toggle-sidebar-btn" class="p-1 rounded-md hover:bg-gray-700">
+                            <svg id="expand-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            <svg id="minimize-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4h4m12 4V4h-4M4 16v4h4m12-4v4h-4"></path></svg>
+                        </button>
+                    </div>
+                    <div class="flex-grow overflow-y-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-secondary sticky top-0 bg-opacity-80 backdrop-blur-sm card-bg">
+                                <tr>
+                                    <th class="p-2">Vessel</th>
+                                    <th class="p-2 text-center">CII</th>
+                                    <th class="p-2 text-center sidebar-extra">Source</th>
+                                    <th class="p-2 text-right sidebar-extra">ETS Liab. (YTD)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vessel-list"></tbody>
+                        </table>
+                    </div>
+                </aside>
+            </main>
+        </div>
+    </div>
+
+    <!-- Vessel Performance View (hidden by default) -->
+    <div id="vessel-performance-view" class="hidden">
+        <div class="min-h-screen flex flex-col">
+            <header class="main-bg p-4 shadow-lg flex justify-between items-center border-b border-gray-700">
+                <div>
+                    <h1 id="vessel-view-title" class="text-xl md:text-2xl font-bold"></h1>
+                    <p id="vessel-view-imo" class="text-secondary text-sm"></p>
+                </div>
+                <button id="back-to-fleet-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    &larr; Back to Fleet
+                </button>
+            </header>
+            <main class="flex-grow p-4 md:p-6 lg:p-8">
+                <div id="data-latency-banner" class="hidden bg-yellow-900/50 border border-yellow-600 text-yellow-300 px-4 py-3 rounded-lg relative mb-6" role="alert">
+                    <strong class="font-bold">Data Latency!</strong>
+                    <span class="block sm:inline">Data shown is based on the last manual report and may not be real-time.</span>
+                </div>
+                <div id="cii-exempt-banner" class="hidden bg-gray-800 border border-gray-600 text-gray-300 px-4 py-3 rounded-lg relative mb-6" role="alert">
+                    <strong class="font-bold">CII Not Applicable.</strong>
+                    <span class="block sm:inline">This vessel type is not required to have a CII rating.</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div id="cii-performance-card" class="hidden card-bg p-6 rounded-lg shadow-glow">
+                        <h2 class="text-lg font-bold mb-3">CII Performance</h2>
+                        <div class="text-center">
+                            <p class="text-secondary text-sm">Current Rating</p>
+                            <p id="vessel-cii-rating" class="text-6xl font-bold"></p>
+                        </div>
+                        <div class="mt-4">
+                             <p class="text-secondary text-sm text-center">Annual Efficiency Improvement</p>
+                             <div class="flex items-center justify-center space-x-2 mt-2">
+                                 <span class="text-lg font-bold text-green-400">On Track</span>
+                                 <span class="text-sm text-secondary">to meet required</span>
+                                 <span id="vessel-cii-improvement" class="text-lg font-bold text-white"></span>
+                                 <span class="text-sm text-secondary">reduction.</span>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="card-bg p-6 rounded-lg shadow-glow md:col-span-2">
+                        <h2 class="text-xl font-bold">Vessel Voyage Data</h2>
+                        <p class="text-secondary mt-2">Detailed voyage history, performance logs, and emissions data for this vessel would be displayed here.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+     <div id="fuelEuDetailModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+         <div class="modal-bg rounded-lg shadow-glow w-full max-w-4xl p-6">
+             <div class="flex justify-between items-center mb-4">
+                 <h2 class="text-xl font-bold">FuelEU Compliance Center</h2>
+                 <button id="closeFuelEuDetailModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+             </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                     <h3 class="text-lg font-semibold text-secondary mb-2">Vessel GHG Intensity Performance vs. Target</h3>
+                     <div class="h-80"><canvas id="fuelEuVesselChart"></canvas></div>
+                 </div>
+                 <div class="space-y-4">
+                     <div class="card-bg p-4 rounded-lg">
+                         <h3 class="font-semibold text-secondary">Fleet Compliance Balance</h3>
+                         <p id="fuelEuBalance" class="text-2xl font-bold"></p>
+                     </div>
+                      <div class="card-bg p-4 rounded-lg">
+                         <h3 class="font-semibold text-secondary">Resulting Financial Position</h3>
+                         <p id="fuelEuFinancial" class="text-2xl font-bold"></p>
+                     </div>
+                     <div class="card-bg p-4 rounded-lg bg-gray-900/20">
+                         <h3 class="font-semibold text-secondary mb-2">Actionable Pooling Strategy</h3>
+                         <p id="pooling-strategy" class="text-sm"></p>
+                     </div>
+                 </div>
+             </div>
+         </div>
+     </div>
+    
+    <div id="fuelCostModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+        <div class="modal-bg rounded-lg shadow-glow w-full max-w-4xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center space-x-4">
+                    <h2 class="text-xl font-bold"></h2>
+                    <div class="time-selector flex-shrink-0 flex space-x-1.5" data-target="fuel-modal">
+                        <button data-period="YTD">YTD</button>
+                        <button data-period="MTD">MTD</button>
+                    </div>
+                </div>
+                <button id="closeFuelModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 h-96">
+                <div class="md:col-span-2 h-full"><canvas id="fuelCostChart"></canvas></div>
+                <div id="breakdown-container" class="h-full flex flex-col min-h-0">
+                    <h3 class="text-lg font-semibold mb-2 text-secondary text-center" id="breakdown-title"></h3>
+                    <div class="flex-grow overflow-y-auto bg-gray-900/20 rounded-lg p-2">
+                        <table class="w-full text-sm text-left">
+                            <thead class="sticky top-0 bg-gray-900/50">
+                                <tr>
+                                    <th class="p-2">Vessel</th>
+                                    <th class="p-2 text-right">Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody id="breakdown-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="manualEntryModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+        <div class="modal-bg rounded-lg shadow-glow w-full max-w-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">Manual Noon Report Entry</h2>
+                <button id="closeManualEntryModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <form id="manual-entry-form" class="space-y-4">
+                <div>
+                    <label for="manual-vessel-select" class="block text-sm font-medium text-secondary mb-1">Vessel</label>
+                    <select id="manual-vessel-select" class="form-input w-full"></select>
+                </div>
+                <div>
+                    <label for="report-date" class="block text-sm font-medium text-secondary mb-1">Report Date</label>
+                    <input type="date" id="report-date" class="form-input w-full">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="fuel-rob" class="block text-sm font-medium text-secondary mb-1">Fuel ROB (mt)</label>
+                        <input type="number" id="fuel-rob" class="form-input w-full" placeholder="e.g., 1250.5">
+                    </div>
+                    <div>
+                        <label for="fuel-consumed" class="block text-sm font-medium text-secondary mb-1">Fuel Consumed (mt)</label>
+                        <input type="number" id="fuel-consumed" class="form-input w-full" placeholder="e.g., 45.2">
+                    </div>
+                </div>
+                 <div id="validation-error" class="hidden text-red-400 text-sm p-2 bg-red-900/30 rounded-md"></div>
+                <div class="pt-4 flex justify-end">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="financialSummaryModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+        <div class="modal-bg rounded-lg shadow-glow w-full max-w-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                 <h2 class="text-xl font-bold">Financial Summary Definitions</h2>
+                 <button id="closeFinancialSummaryModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <div class="space-y-4 text-sm text-secondary">
+                <div>
+                    <strong class="text-main">Accrued Liability:</strong> The total current market value of the EUAs required to cover the emissions produced to date. It is your current, unrealized cost. <br>
+                    <em class="text-xs">(Used Allowances x Current Market Price)</em>
+                </div>
+                 <div>
+                    <strong class="text-main">Value of Holdings:</strong> The total current market value of all the EUAs you currently own.
+                    <br> <em class="text-xs">(Owned Allowances x Current Market Price)</em>
+                </div>
+                 <div>
+                    <strong class="text-main">Net Exposure:</strong> The difference between the value of your holdings and your accrued liability. A positive value indicates a surplus, while a negative value (in red) shows your immediate financial shortfall if you had to settle today.
+                    <br> <em class="text-xs">(Value of Holdings - Accrued Liability)</em>
+                </div>
+                 <div>
+                    <strong class="text-main">Unrealized P&L:</strong> The "paper" profit or loss on your EUA holdings, based on the change between your average purchase price and the current market price.
+                    <br> <em class="text-xs">((Current Price - Average Purchase Price) x Owned Allowances)</em>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ciiDetailModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
+        <div class="modal-bg rounded-lg shadow-glow w-full max-w-4xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                 <h2 class="text-xl font-bold">Fleet CII Analysis & Projection</h2>
+                 <button id="closeCiiDetailModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <div class="md:col-span-3">
+                    <h3 class="text-lg font-semibold text-secondary mb-2">Rating Projection (2025 vs 2026)</h3>
+                    <div class="h-80"><canvas id="ciiProjectionChart"></canvas></div>
+                </div>
+                <div class="md:col-span-2">
+                    <h3 class="text-lg font-semibold text-secondary mb-2">Vessels at Risk (Projected Drop)</h3>
+                    <div id="vessels-at-risk-list" class="space-y-2 text-sm"></div>
+                </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-secondary">
+                 <div><strong class="text-main">EEXI:</strong> A one-time certification of a vessel's technical design efficiency. It's the starting point.</div>
+                 <div><strong class="text-main">SEEMP:</strong> The Ship Energy Efficiency Management Plan. A dynamic, onboard plan detailing how the vessel will operate efficiently to meet its targets.</div>
+                 <div><strong class="text-main">CII:</strong> The Carbon Intensity Indicator. An annual operational rating (A-E) based on actual emissions and distance traveled. The SEEMP is the plan to achieve a good CII rating.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="co2Modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="modal-bg rounded-lg shadow-glow w-full max-w-3xl p-6"><div class="flex justify-between items-center mb-4"><div class="flex items-center space-x-4"><h2 class="text-xl font-bold"></h2><div class="time-selector flex-shrink-0 flex space-x-1.5" data-target="co2-modal"><button data-period="YTD">YTD</button><button data-period="MTD">MTD</button></div></div><button id="closeCo2Modal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button></div><div class="h-96"><canvas id="co2VesselChart"></canvas></div></div></div>
+    <div id="alarmsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="modal-bg rounded-lg shadow-glow w-full max-w-2xl p-6"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Key Reporting Deadlines</h2><button id="closeAlarmsModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button></div><div id="deadlines-list" class="space-y-4"></div><div class="mt-6 pt-4 border-t border-gray-700"><h3 class="text-lg font-semibold mb-2 text-secondary">Alert Settings</h3><div class="flex items-center space-x-4 text-sm"><label>Warning threshold: <input type="number" id="warning-weeks" value="4" class="bg-gray-700 rounded p-1 w-16 text-center"> weeks</label><label>Critical threshold: <input type="number" id="critical-weeks" value="2" class="bg-gray-700 rounded p-1 w-16 text-center"> weeks</label></div></div></div></div>
+    <div id="euaTickerModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="modal-bg rounded-lg shadow-glow w-full max-w-3xl p-6"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">EUA Live Price Ticker</h2><button id="closeEuaTickerModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button></div><div class="h-96"><canvas id="euaPriceChart"></canvas></div></div></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- MOCK DATA ---
+            const fleetData = {
+                kpis: {
+                    fuelCost: { mtd: 1280500, ytd: 15366000, trendMtd: -2.5, trendYtd: 1.5 },
+                    co2: { mtd: 12731, ytd: 152780, trendYtd: 1.2, trendMtd: -0.5 }
+                },
+                trends: {
+                    monthlyFuelCost: [1.4, 1.3, 1.5, 1.6, 1.2, 1.7, 1.8, 1.55, 1.3, 1.42, 1.51, 1.55],
+                    dailyFuelCost: (year, month) => {
+                        const days = getDaysInMonth(year, month);
+                        return Array.from({ length: days }, (_, i) => ({
+                            day: i + 1,
+                            total: 40000 + Math.random() * 20000,
+                            vessels: fleetData.vessels.map(v => ({ name: v.name, imo: v.imo, cost: (v.etsLiability / 100) * (0.8 + Math.random() * 0.4) }))
+                        }));
+                    },
+                    monthlyVesselCosts: {} 
+                },
+                ets: {
+                    ownedAllowances: 120000,
+                    usedAllowances: 85000,
+                    projectedUsage: 65000, 
+                    marketPrice: 70.00,
+                    averagePurchasePrice: 65.80
+                },
+                 fuelEu: {
+                    target: 91.1,
+                    penaltyRate: 2400 
+                },
+                vessels: [
+                    { name: 'Kongsberg Explorer', imo: '9876543', type: 'Bulker', cii: 'B', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 850000, reportingType: 'Automated', ghgIntensity: 88.5, co2_ytd: 18000, co2_mtd: 1500 },
+                    { name: 'Maritime Future', imo: '9876544', type: 'Tanker', cii: 'C', ciiProjected: 'D', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 1250000, reportingType: 'Automated', ghgIntensity: 92.3, co2_ytd: 25000, co2_mtd: 2100 },
+                    { name: 'Ocean Innovator', imo: '9876545', type: 'Container', cii: 'A', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 650000, reportingType: 'Automated', ghgIntensity: 85.1, co2_ytd: 13000, co2_mtd: 1100 },
+                    { name: 'Bergen Trader', imo: '9876546', type: 'General Cargo', cii: 'D', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 1800000, reportingType: 'Manual', ghgIntensity: 95.8, co2_ytd: 36000, co2_mtd: 3000 },
+                    { name: 'Viking Offshore', imo: '9876547', type: 'Offshore Support', cii: null, ciiRequired: false, ciiImprovementRequired: 0, etsLiability: 1100000, reportingType: 'Manual', ghgIntensity: 90.0, co2_ytd: 22000, co2_mtd: 1800 },
+                    { name: 'Arctic Aurora', imo: '9876548', type: 'LNG Carrier', cii: 'A', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 550000, reportingType: 'Automated', ghgIntensity: 82.4, co2_ytd: 11000, co2_mtd: 900 },
+                    { name: 'Southern Cross', imo: '9876549', type: 'Ro-Ro', cii: 'C', ciiProjected: 'C', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 1350000, reportingType: 'Manual', ghgIntensity: 91.5, co2_ytd: 27000, co2_mtd: 2200 },
+                    { name: 'Pacific Pioneer', imo: '9876550', type: 'Bulker', cii: 'B', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 950000, reportingType: 'Automated', ghgIntensity: 89.0, co2_ytd: 19000, co2_mtd: 1600 },
+                    { name: 'Atlantic Voyager', imo: '9876551', type: 'Container', cii: 'D', ciiProjected: 'E', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 1950000, reportingType: 'Manual', ghgIntensity: 96.2, co2_ytd: 39000, co2_mtd: 3200 },
+                    { name: 'Emerald Wave', imo: '9876552', type: 'Tanker', cii: 'B', ciiRequired: true, ciiImprovementRequired: 2.27, etsLiability: 750000, reportingType: 'Automated', ghgIntensity: 89.9, co2_ytd: 15000, co2_mtd: 1200 }
+                ]
+            };
+            let reportingDeadlines = [
+                { id: 1, name: 'Annual EU MRV Report', date: '2026-04-30' },
+                { id: 2, name: 'Annual IMO DCS Report', date: '2026-05-31' },
+                { id: 3, name: 'EU ETS Surrender (2025 Emissions)', date: '2026-09-30' },
+                { id: 4, name: 'EU ETS Surrender (2024 Emissions)', date: '2025-09-30' }
+            ];
+
+            let fuelChart, co2VesselChart, euaPriceChart, ciiProjectionChart, fuelEuVesselChart;
+            const today = new Date('2025-09-19T10:57:00');
+            const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            const formatNumber = (num, digits=0) => num.toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+            const formatCurrency = (num, decimals = 0) => `€${num.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals})}`;
+            const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
+
+            const generateRealisticMonthlyData = () => {
+                monthLabels.forEach((month, index) => {
+                    if (index < today.getMonth() + 1) { 
+                        fleetData.trends.monthlyVesselCosts[month] = fleetData.vessels.map(v => ({
+                            name: v.name, imo: v.imo,
+                            cost: (v.etsLiability / 9) * (0.8 + Math.random() * 0.4)
+                        }));
+                    }
+                });
+            };
+
+            const fleetView = document.getElementById('fleet-dashboard-view');
+            const vesselView = document.getElementById('vessel-performance-view');
+            const dataLatencyBanner = document.getElementById('data-latency-banner');
+            const ciiExemptBanner = document.getElementById('cii-exempt-banner');
+            const ciiPerformanceCard = document.getElementById('cii-performance-card');
+
+            const showVesselView = (vesselName, vesselImo) => {
+                const vessel = fleetData.vessels.find(v => v.imo === vesselImo);
+                document.getElementById('vessel-view-title').textContent = `${vesselName}`;
+                document.getElementById('vessel-view-imo').textContent = `IMO: ${vesselImo}`;
+                dataLatencyBanner.classList.toggle('hidden', vessel.reportingType !== 'Manual');
+                ciiExemptBanner.classList.toggle('hidden', vessel.ciiRequired);
+                ciiPerformanceCard.classList.toggle('hidden', !vessel.ciiRequired);
+
+                if (vessel.ciiRequired) {
+                    const ratingEl = document.getElementById('vessel-cii-rating');
+                    const ciiColors = { 'A': 'text-green-400', 'B': 'text-green-300', 'C': 'text-yellow-400', 'D': 'text-orange-500', 'E': 'text-red-500' };
+                    ratingEl.textContent = vessel.cii;
+                    ratingEl.className = `text-6xl font-bold ${ciiColors[vessel.cii] || 'text-gray-400'}`;
+                    document.getElementById('vessel-cii-improvement').textContent = `${vessel.ciiImprovementRequired}%`;
+                }
+                fleetView.classList.add('hidden');
+                vesselView.classList.remove('hidden');
+            };
+            const showFleetView = () => {
+                fleetView.classList.remove('hidden');
+                vesselView.classList.add('hidden');
+            };
+            document.getElementById('back-to-fleet-btn').addEventListener('click', showFleetView);
+            
+            const updateTime = () => {
+                const now = new Date();
+                document.getElementById('system-time').textContent = now.toLocaleTimeString('en-GB');
+                document.getElementById('system-date').textContent = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                document.getElementById('live-eua-price').textContent = `€${fleetData.ets.marketPrice.toFixed(2)}`;
+                document.getElementById('eua-price-timestamp').textContent = `Updated: ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+            };
+            setInterval(updateTime, 5000); // Update price every 5 seconds for demo
+            updateTime();
+
+            const updateAlarmBell = () => {
+                const deadlinesList = document.getElementById('deadlines-list');
+                const alarmBell = document.querySelector('#alarm-bell-btn .alarm-bell');
+                const warningWeeks = parseInt(document.getElementById('warning-weeks').value, 10);
+                const criticalWeeks = parseInt(document.getElementById('critical-weeks').value, 10);
+                let overallStatus = 'default';
+                deadlinesList.innerHTML = '';
+                reportingDeadlines.sort((a,b) => new Date(a.date) - new Date(b.date));
+                reportingDeadlines.forEach(deadline => {
+                    const deadlineDate = new Date(deadline.date);
+                    const diffTime = deadlineDate - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    const diffWeeks = diffDays / 7;
+                    let status = 'default'; let color = 'text-gray-400';
+                    if (diffDays <= 0) { status = 'critical'; color = 'text-red-400';
+                    } else if (diffWeeks <= criticalWeeks) { status = 'critical'; color = 'text-red-400';
+                    } else if (diffWeeks <= warningWeeks) { status = 'warning'; color = 'text-yellow-400'; }
+                    if (status === 'critical') overallStatus = 'critical';
+                    else if (status === 'warning' && overallStatus !== 'critical') overallStatus = 'warning';
+                    deadlinesList.innerHTML += `<div class="flex justify-between items-center"><p>${deadline.name}</p><div class="text-right"><p class="font-semibold ${color}">${deadlineDate.toLocaleDateString()}</p><p class="text-xs ${color}">${diffDays > 0 ? `in ${diffDays} days` : 'Overdue'}</p></div></div>`;
+                });
+                alarmBell.classList.remove('text-gray-400', 'text-yellow-400', 'text-red-400');
+                if (overallStatus === 'critical') alarmBell.classList.add('text-red-400');
+                else if (overallStatus === 'warning') alarmBell.classList.add('text-yellow-400');
+                else alarmBell.classList.add('text-gray-400');
+            };
+            document.getElementById('warning-weeks').addEventListener('change', updateAlarmBell);
+            document.getElementById('critical-weeks').addEventListener('change', updateAlarmBell);
+            
+            const updateKpiCard = (type, period) => {
+                document.querySelectorAll(`.time-selector[data-target="${type}"] button`).forEach(btn => btn.classList.remove('active'));
+                const activeButton = document.querySelector(`.time-selector[data-target="${type}"] button[data-period="${period}"]`);
+                if(activeButton) activeButton.classList.add('active');
+                const fuelCostValueEl = document.getElementById('fuelCostValue');
+                const fuelCostTrendEl = document.getElementById('fuelCostTrend');
+                const co2ValueEl = document.getElementById('co2Value');
+                const co2TrendEl = document.getElementById('co2Trend');
+                if (type === 'fuel') {
+                    const value = fleetData.kpis.fuelCost[period.toLowerCase()];
+                    const trend = fleetData.kpis.fuelCost[period === 'MTD' ? 'trendMtd' : 'trendYtd'];
+                    fuelCostValueEl.textContent = formatCurrency(value);
+                    fuelCostTrendEl.textContent = `${trend > 0 ? '+' : ''}${trend}% vs last ${period === 'MTD' ? 'month' : 'year'}`;
+                    fuelCostTrendEl.className = `text-sm flex items-center ${trend < 0 ? 'text-green-400' : 'text-red-400'}`;
+                } else if (type === 'co2') {
+                    const value = fleetData.kpis.co2[period.toLowerCase()];
+                    const trend = fleetData.kpis.co2[period === 'MTD' ? 'trendMtd' : 'trendYtd'];
+                    co2ValueEl.textContent = `${formatNumber(value)} t`;
+                    co2TrendEl.textContent = `${trend > 0 ? '+' : ''}${trend}% on target`;
+                    co2TrendEl.className = `text-sm flex items-center ${trend < 0 ? 'text-green-400' : 'text-yellow-400'}`;
+                }
+            };
+
+            const openModal = (modalId) => document.getElementById(modalId).classList.remove('hidden');
+            const closeModal = (modalId) => document.getElementById(modalId).classList.add('hidden');
+            document.getElementById('alarm-bell-btn').addEventListener('click', () => openModal('alarmsModal'));
+            document.getElementById('closeAlarmsModal').addEventListener('click', () => closeModal('alarmsModal'));
+            document.getElementById('live-eua-price-container').addEventListener('click', () => { renderEuaPriceChart(); openModal('euaTickerModal'); });
+            document.getElementById('closeEuaTickerModal').addEventListener('click', () => closeModal('euaTickerModal'));
+            document.getElementById('fuelCostCard').addEventListener('click', () => {
+                const activePeriod = document.querySelector('.time-selector[data-target="fuel"] button.active').dataset.period;
+                document.querySelectorAll('.time-selector[data-target="fuel-modal"] button').forEach(b => b.classList.toggle('active', b.dataset.period === activePeriod));
+                renderFuelChart(activePeriod); openModal('fuelCostModal');
+            });
+            document.getElementById('co2Card').addEventListener('click', () => {
+                const activePeriod = document.querySelector('.time-selector[data-target="co2"] button.active').dataset.period;
+                document.querySelectorAll('.time-selector[data-target="co2-modal"] button').forEach(b => b.classList.toggle('active', b.dataset.period === activePeriod));
+                renderCo2VesselChart(activePeriod); openModal('co2Modal');
+            });
+            document.getElementById('closeFuelModal').addEventListener('click', () => closeModal('fuelCostModal'));
+            document.getElementById('closeCo2Modal').addEventListener('click', () => closeModal('co2Modal'));
+            document.getElementById('breakdown-list').addEventListener('click', (e) => {
+                 if (e.target.closest('.vessel-link')) {
+                    const target = e.target.closest('.vessel-link');
+                    const { vesselName, vesselImo } = target.dataset;
+                    closeModal('fuelCostModal'); showVesselView(vesselName, vesselImo);
+                }
+            });
+            document.getElementById('manual-entry-btn').addEventListener('click', () => {
+                const select = document.getElementById('manual-vessel-select');
+                select.innerHTML = fleetData.vessels.filter(v => v.reportingType === 'Manual').map(v => `<option value="${v.imo}">${v.name}</option>`).join('');
+                document.getElementById('report-date').valueAsDate = new Date(); openModal('manualEntryModal');
+            });
+            document.getElementById('closeManualEntryModal').addEventListener('click', () => closeModal('manualEntryModal'));
+            document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
+                e.preventDefault(); 
+                // In a real app, you would send this data to a server.
+                // For this demo, we just show a confirmation.
+                // Note: Using a custom modal/toast for notifications is better than alert().
+                // This is just a placeholder.
+                console.log('Noon report submitted (demo).');
+                closeModal('manualEntryModal'); 
+            });
+            const fuelRobInput = document.getElementById('fuel-rob'), fuelConsumedInput = document.getElementById('fuel-consumed'), validationErrorEl = document.getElementById('validation-error');
+            function validateFuel() {
+                const rob = parseFloat(fuelRobInput.value), consumed = parseFloat(fuelConsumedInput.value);
+                if (!isNaN(rob) && !isNaN(consumed) && consumed > rob) {
+                    validationErrorEl.textContent = 'Error: Fuel consumed cannot be greater than Fuel Remaining on Board (ROB).';
+                    validationErrorEl.classList.remove('hidden');
+                } else { validationErrorEl.classList.add('hidden'); }
+            }
+            fuelRobInput.addEventListener('input', validateFuel); fuelConsumedInput.addEventListener('input', validateFuel);
+            document.querySelector('.time-selector[data-target="fuel-modal"]').addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const period = e.target.dataset.period;
+                    document.querySelectorAll('.time-selector[data-target="fuel-modal"] button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active'); renderFuelChart(period);
+                }
+            });
+             document.querySelector('.time-selector[data-target="co2-modal"]').addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const period = e.target.dataset.period;
+                    document.querySelectorAll('.time-selector[data-target="co2-modal"] button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active'); renderCo2VesselChart(period);
+                }
+            });
+            
+            const chartDefaultOptions = { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#A0B3D1' }, grid: { color: 'rgba(160, 179, 209, 0.1)' } }, y: { ticks: { color: '#A0B3D1' }, grid: { color: 'rgba(160, 179, 209, 0.1)' } } } };
+            const updateMonthlyBreakdown = (monthIndex) => {
+                const breakdownTitle = document.getElementById('breakdown-title'), breakdownList = document.getElementById('breakdown-list');
+                const monthName = monthLabels[monthIndex]; breakdownTitle.textContent = `${monthName} Breakdown`;
+                const monthData = fleetData.trends.monthlyVesselCosts[monthName];
+                if (monthData) {
+                    breakdownList.innerHTML = monthData.sort((a,b) => b.cost - a.cost)
+                        .map(v => `<tr class="border-b border-gray-700/50"><td class="p-2"><p class="vessel-link" data-vessel-name="${v.name}" data-vessel-imo="${v.imo}">${v.name}</p></td><td class="p-2 text-right">${formatCurrency(v.cost)}</td></tr>`).join('');
+                } else { breakdownList.innerHTML = `<tr><td colspan="2" class="p-4 text-center text-secondary">No data available for this month.</td></tr>`; }
+            };
+            const updateDailyBreakdown = (dayIndex, dataPoints) => {
+                const dayData = dataPoints[dayIndex]; document.getElementById('breakdown-title').textContent = `Day ${dayData.day} Breakdown`;
+                const listEl = document.getElementById('breakdown-list');
+                listEl.innerHTML = dayData.vessels.sort((a, b) => b.cost - a.cost)
+                    .map(v => `<tr class="border-b border-gray-700/50"><td class="p-2"><p class="vessel-link" data-vessel-name="${v.name}" data-vessel-imo="${v.imo}">${v.name}</p></td><td class="p-2 text-right">${formatCurrency(v.cost, 2)}</td></tr>`).join('');
+            };
+            const renderFuelChart = (period) => {
+                const fuelModalTitle = document.querySelector('#fuelCostModal h2'), breakdownContainer = document.getElementById('breakdown-container');
+                let chartType, labels, data, dataPoints;
+                if (period === 'YTD') {
+                    fuelModalTitle.textContent = 'YTD Fuel Cost Trend'; breakdownContainer.classList.remove('hidden');
+                    chartType = 'bar'; labels = monthLabels; const currentMonthIndex = today.getMonth();
+                    data = fleetData.trends.monthlyFuelCost;
+                    const datasets = [
+                        { label: 'Actual Cost', data: data.map((d, i) => i <= currentMonthIndex ? d : null), backgroundColor: '#38BDF8' },
+                        { label: 'Projected Cost', data: data.map((d, i) => i > currentMonthIndex ? d : null), backgroundColor: 'rgba(56, 189, 248, 0.5)' }
+                    ];
+                    updateMonthlyBreakdown(currentMonthIndex); const ctx = document.getElementById('fuelCostChart').getContext('2d');
+                    if (fuelChart) fuelChart.destroy();
+                    fuelChart = new Chart(ctx, { type: 'bar', data: { labels, datasets },
+                        options: { ...chartDefaultOptions, plugins: { legend: { display: true, position: 'bottom', labels: {color: '#A0B3D1'} }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${formatCurrency(c.raw * 1000000)}` } } },
+                        scales: { x: { stacked: true }, y: { stacked: true, ...chartDefaultOptions.scales.y, ticks: { callback: (v) => `€${v}M` }}},
+                        onClick: (e, elements) => { if (elements.length > 0) updateMonthlyBreakdown(elements[0].index); } } });
+                } else {
+                    fuelModalTitle.textContent = 'MTD Fuel Cost Trend (Daily)'; breakdownContainer.classList.remove('hidden');
+                    chartType = 'line'; const allDataPoints = fleetData.trends.dailyFuelCost(today.getFullYear(), today.getMonth() + 1);
+                    const currentDayOfMonth = today.getDate(); dataPoints = allDataPoints.filter(dp => dp.day < currentDayOfMonth);
+                    labels = dataPoints.map(d => d.day); data = dataPoints.map(d => d.total);
+                    const yesterdayIndex = today.getDate() - 2;
+                    if (yesterdayIndex >= 0 && yesterdayIndex < dataPoints.length) { updateDailyBreakdown(yesterdayIndex, dataPoints);
+                    } else { document.getElementById('breakdown-title').textContent = 'Daily Breakdown';
+                             document.getElementById('breakdown-list').innerHTML = `<tr><td colspan="2" class="p-4 text-center text-secondary">No data for yesterday.</td></tr>`; }
+                    const ctx = document.getElementById('fuelCostChart').getContext('2d'); if (fuelChart) fuelChart.destroy();
+                    fuelChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Fuel Cost', data, backgroundColor: '#38BDF8', borderColor: '#38BDF8' }] },
+                        options: { ...chartDefaultOptions, plugins: { ...chartDefaultOptions.plugins, tooltip: { callbacks: { label: (c) => formatCurrency(c.raw) } } },
+                        scales: { ...chartDefaultOptions.scales, y: { ...chartDefaultOptions.scales.y, ticks: { callback: (v) => `€${v/1000}k` }}},
+                        onClick: (e, elements) => { if (elements.length > 0) updateDailyBreakdown(elements[0].index, dataPoints); } } });
+                }
+            };
+            const renderCo2VesselChart = (period) => {
+                const co2ModalTitle = document.querySelector('#co2Modal h2');
+                co2ModalTitle.textContent = `Vessel CO₂ Contribution (${period})`;
+                const dataKey = period.toLowerCase() === 'ytd' ? 'co2_ytd' : 'co2_mtd';
+                const sortedVessels = [...fleetData.vessels].sort((a,b) => b[dataKey] - a[dataKey]);
+                const ctx = document.getElementById('co2VesselChart').getContext('2d');
+                if(co2VesselChart) co2VesselChart.destroy();
+                co2VesselChart = new Chart(ctx, { type: 'bar', data: { labels: sortedVessels.map(v => v.name),
+                        datasets: [{ label: `CO₂ Emissions (${period})`, data: sortedVessels.map(v => v[dataKey]), backgroundColor: '#F59E0B', borderColor: '#FBBF24', borderWidth: 1 }] },
+                         options: { ...chartDefaultOptions, plugins: { ...chartDefaultOptions.plugins, tooltip: { callbacks: { label: (c) => `${c.raw.toLocaleString()} t` } } },
+                            scales: { ...chartDefaultOptions.scales, y: { ...chartDefaultOptions.scales.y, ticks: { callback: (v) => `${(v/1000).toFixed(1)}k t` } } } }
+                });
+            };
+            const renderEuaPriceChart = () => {
+                const ctx = document.getElementById('euaPriceChart').getContext('2d');
+                const now = Date.now(); const dataPoints = 30; let lastPrice = fleetData.ets.marketPrice;
+                const priceData = Array.from({length: dataPoints}, (_, i) => { lastPrice += (Math.random() - 0.5) * 0.5; return { x: now - (dataPoints - i) * 60000, y: lastPrice }; });
+                if (euaPriceChart) euaPriceChart.destroy();
+                euaPriceChart = new Chart(ctx, { type: 'line', data: { datasets: [{ label: 'EUA Price', data: priceData, borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true, tension: 0.3, pointRadius: 0, }] },
+                    options: { ...chartDefaultOptions, scales: { x: { type: 'time', time: { unit: 'minute' }, ticks: { color: '#A0B3D1' }, grid: { color: 'rgba(160, 179, 209, 0.1)' } },
+                        y: { ticks: { color: '#A0B3D1', callback: (value) => `€${value.toFixed(2)}` }, grid: { color: 'rgba(160, 179, 209, 0.1)' } } },
+                        plugins: { ...chartDefaultOptions.plugins, tooltip: { callbacks: { label: (c) => `Price: €${c.raw.y.toFixed(2)}` } } } }
+                });
+            };
+            const renderCiiProjectionChart = () => {
+                const ciiLabels = ['A', 'B', 'C', 'D', 'E'];
+                const ciiColors = { 'A': '#22C55E', 'B': '#84CC16', 'C': '#FBBF24', 'D': '#F97316', 'E': '#EF4444' };
+                const currentCounts = ciiLabels.map(rating => fleetData.vessels.filter(v => v.cii === rating && v.ciiRequired).length);
+                const projectedCounts = ciiLabels.map(rating => fleetData.vessels.filter(v => (v.ciiProjected || v.cii) === rating && v.ciiRequired).length);
+                
+                const ctx = document.getElementById('ciiProjectionChart').getContext('2d');
+                if (ciiProjectionChart) ciiProjectionChart.destroy();
+                ciiProjectionChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: ciiLabels, datasets: [
+                        { label: '2025 Current', data: currentCounts, backgroundColor: ciiLabels.map(l => ciiColors[l]), barPercentage: 0.6 },
+                        { label: '2026 Projected', data: projectedCounts, backgroundColor: ciiLabels.map(l => `${ciiColors[l]}80`), barPercentage: 0.6 }
+                    ]},
+                    options: { ...chartDefaultOptions, plugins: { ...chartDefaultOptions.plugins, legend: { display: true, position: 'bottom', labels: { color: '#A0B3D1' } } } }
+                });
+
+                const atRiskList = document.getElementById('vessels-at-risk-list');
+                atRiskList.innerHTML = '';
+                const atRiskVessels = fleetData.vessels.filter(v => v.ciiProjected && v.cii !== v.ciiProjected && ['D', 'E'].includes(v.ciiProjected));
+                if(atRiskVessels.length > 0) {
+                    document.getElementById('cii-alarm-icon').classList.remove('hidden');
+                    atRiskVessels.forEach(v => {
+                        atRiskList.innerHTML += `<div class="flex justify-between items-center bg-gray-900/20 p-2 rounded-md"><span class="vessel-link" data-vessel-name="${v.name}" data-vessel-imo="${v.imo}">${v.name}</span> <span class="font-bold">${v.cii} &rarr; <span class="text-orange-500">${v.ciiProjected}</span></span></div>`
+                    });
+                } else {
+                    document.getElementById('cii-alarm-icon').classList.add('hidden');
+                    atRiskList.innerHTML = `<div class="text-center text-secondary p-4">No vessels are projected to drop to a D or E rating.</div>`;
+                }
+
+            };
+            const renderFuelEuChart = () => {
+                const target = fleetData.fuelEu.target;
+                const sortedVessels = [...fleetData.vessels].sort((a,b) => a.ghgIntensity - b.ghgIntensity);
+                const colors = sortedVessels.map(v => v.ghgIntensity <= target ? 'rgba(34, 197, 94, 0.7)' : 'rgba(251, 191, 36, 0.7)');
+                const borderColors = sortedVessels.map(v => v.ghgIntensity <= target ? '#22C55E' : '#FBBF24');
+                const ctx = document.getElementById('fuelEuVesselChart').getContext('2d');
+                if(fuelEuVesselChart) fuelEuVesselChart.destroy();
+                
+                fuelEuVesselChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedVessels.map(v => v.name),
+                        datasets: [
+                            { label: 'GHG Intensity', data: sortedVessels.map(v => v.ghgIntensity), backgroundColor: colors, borderColor: borderColors, borderWidth: 1},
+                            { label: 'Target', type: 'line', data: Array(sortedVessels.length).fill(target), borderColor: '#f87171', borderWidth: 2, pointRadius: 0, fill: false }
+                        ]
+                    },
+                    options: { ...chartDefaultOptions,
+                        plugins: { legend: { display: true, position: 'bottom', labels: {color: '#A0B3D1'} }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw.toFixed(2)} gCO2e/MJ` } } },
+                        scales: { ...chartDefaultOptions.scales, y: { ...chartDefaultOptions.scales.y, title: { display: true, text: 'gCO2e/MJ' } } } }
+                });
+
+                let totalEnergy = 100000; 
+                let complianceBalance = fleetData.vessels.reduce((acc, v) => acc + (v.ghgIntensity - target) * totalEnergy, 0);
+                const balanceEl = document.getElementById('fuelEuBalance');
+                const financialEl = document.getElementById('fuelEuFinancial');
+                const strategyEl = document.getElementById('pooling-strategy');
+                if(complianceBalance > 0) {
+                    let penalty = (complianceBalance / 1000000) * 0.785 * fleetData.fuelEu.penaltyRate;
+                    balanceEl.textContent = `${formatNumber(complianceBalance, 2)} gCO2e Deficit`;
+                    balanceEl.className = "text-2xl font-bold text-red-400";
+                    financialEl.textContent = `${formatCurrency(penalty)} Penalty`;
+                    financialEl.className = "text-2xl font-bold text-red-400";
+                } else {
+                    balanceEl.textContent = `${formatNumber(Math.abs(complianceBalance), 2)} gCO2e Surplus`;
+                    balanceEl.className = "text-2xl font-bold text-green-400";
+                    financialEl.textContent = "Bankable for next period";
+                    financialEl.className = "text-2xl font-bold text-green-400";
+                }
+
+                const overPerformers = fleetData.vessels.filter(v => v.ghgIntensity < target).slice(0,2).map(v => v.name).join(' & ');
+                const underPerformers = fleetData.vessels.filter(v => v.ghgIntensity > target).slice(0,2).map(v => v.name).join(' & ');
+                strategyEl.textContent = `Utilize the compliance surplus from ${overPerformers} to offset the deficit from ${underPerformers} within the fleet pool.`;
+            };
+
+            const toggleSidebar = () => {
+                const sidebar = document.getElementById('fleet-sidebar');
+                const expandIcon = document.getElementById('expand-icon');
+                const minimizeIcon = document.getElementById('minimize-icon');
+                sidebar.classList.toggle('minimized');
+                const isMinimized = sidebar.classList.contains('minimized');
+                document.querySelectorAll('.sidebar-extra').forEach(el => {
+                    el.style.display = isMinimized ? 'none' : '';
+                });
+                expandIcon.classList.toggle('hidden', !isMinimized);
+                minimizeIcon.classList.toggle('hidden', isMinimized);
+            };
+
+            document.getElementById('toggle-sidebar-btn').addEventListener('click', toggleSidebar);
+            
+            const init = () => {
+                generateRealisticMonthlyData(); updateKpiCard('fuel', 'YTD'); updateKpiCard('co2', 'YTD');
+                const { ets, vessels } = fleetData;
+                const usedPercentage = (ets.usedAllowances / ets.ownedAllowances) * 100;
+                const remainingAllowances = ets.ownedAllowances - ets.usedAllowances;
+                document.getElementById('ets-owned-allowances').textContent = `${formatNumber(ets.ownedAllowances)} EUA`;
+                document.getElementById('ets-used-allowances').textContent = `${formatNumber(ets.usedAllowances)} EUA`;
+                document.getElementById('ets-remaining-allowances').textContent = `${formatNumber(remainingAllowances)} EUA`;
+                document.getElementById('ets-percentage').textContent = `${usedPercentage.toFixed(1)}%`;
+                
+                const accruedLiability = ets.usedAllowances * ets.marketPrice;
+                const valueOfHoldings = ets.ownedAllowances * ets.marketPrice;
+                const netExposure = valueOfHoldings - accruedLiability;
+                const unrealizedPl = (ets.marketPrice - ets.averagePurchasePrice) * ets.ownedAllowances;
+                document.getElementById('accrued-liability').textContent = formatCurrency(accruedLiability);
+                document.getElementById('value-of-holdings').textContent = formatCurrency(valueOfHoldings);
+                const netExposureEl = document.getElementById('net-exposure');
+                netExposureEl.textContent = formatCurrency(netExposure);
+                netExposureEl.classList.toggle('text-red-400', netExposure < 0);
+                netExposureEl.classList.toggle('text-green-400', netExposure >= 0);
+                const unrealizedPlEl = document.getElementById('unrealized-pl');
+                unrealizedPlEl.textContent = (unrealizedPl >= 0 ? '+' : '') + formatCurrency(unrealizedPl);
+                unrealizedPlEl.classList.toggle('text-green-400', unrealizedPl >= 0);
+                unrealizedPlEl.classList.toggle('text-red-400', unrealizedPl < 0);
+
+                const progressCircle = document.getElementById('ets-progress');
+                const circumference = 2 * Math.PI * 15.9155;
+                progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+                progressCircle.style.strokeDashoffset = circumference * (1 - usedPercentage / 100);
+                const totalProjected = ets.usedAllowances + ets.projectedUsage;
+                const surplusDeficit = ets.ownedAllowances - totalProjected;
+                new Chart(document.getElementById('etsProjectionChart').getContext('2d'), { type: 'bar',
+                    data: { labels: ['Annual Allowance Status'], datasets: [
+                            { label: 'Used YTD', data: [ets.usedAllowances], backgroundColor: '#3b82f6' }, 
+                            { label: 'Projected Remainder', data: [ets.projectedUsage], backgroundColor: '#60a5fa' },
+                            { label: surplusDeficit >= 0 ? 'Projected Surplus' : 'Projected Deficit', data: [Math.abs(surplusDeficit)], backgroundColor: surplusDeficit >= 0 ? '#22C55E' : '#f97316' }
+                        ] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { color: '#A0B3D1' } }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${formatNumber(c.raw)} EUA` } } },
+                        scales: { x: { stacked: true, ticks: { color: '#A0B3D1', callback: (v) => (v / 1000) + 'k' }, grid: { color: 'rgba(160, 179, 209, 0.1)' } }, y: { stacked: true, ticks: { color: '#A0B3D1' }, grid: { display: false } } } }
+                });
+                
+                const projectionTooltip = document.getElementById('projected-cost-tooltip');
+                const projectedCost = (ets.usedAllowances + ets.projectedUsage) * ets.marketPrice;
+                projectionTooltip.innerHTML = `This is the total estimated cost for the entire year's emissions based on the current market price. <br> <em class='text-xs'> ( (Used + Projected) x EUA Price ) </em> <br> <strong class='text-main'>${formatCurrency(projectedCost)}</strong>`;
+
+                const vesselListEl = document.getElementById('vessel-list'); vesselListEl.innerHTML = '';
+                vessels.sort((a,b) => b.etsLiability - a.etsLiability).forEach(v => {
+                     const ciiDisplay = v.ciiRequired ? `<span class="inline-block w-6 h-6 leading-6 text-center rounded-full text-white font-bold ${ { 'A': 'bg-green-500', 'B': 'bg-green-400', 'C': 'bg-yellow-400', 'D': 'bg-orange-500', 'E': 'bg-red-500' }[v.cii] }">${v.cii}</span>` : `<span class="text-secondary text-xs">N/A</span>`;
+                     const sourceIcon = v.reportingType === 'Automated' 
+                        ? `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>`
+                        : `<svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>`;
+                    vesselListEl.innerHTML += `<tr class="border-b border-gray-800 hover:bg-gray-800/50">
+                                                <td class="p-2">
+                                                    <p class="vessel-link" data-vessel-name="${v.name}" data-vessel-imo="${v.imo}">${v.name}</p>
+                                                    <p class="text-xs text-secondary sidebar-extra">IMO: ${v.imo}</p>
+                                                </td>
+                                                <td class="p-2 text-center">${ciiDisplay}</td>
+                                                <td class="p-2 text-center sidebar-extra"><div class="flex justify-center items-center" title="${v.reportingType} Reporting">${sourceIcon}</div></td>
+                                                <td class="p-2 text-right font-semibold sidebar-extra">${formatCurrency(v.etsLiability)}</td>
+                                               </tr>`;
+                });
+                vesselListEl.addEventListener('click', (e) => {
+                     if (e.target.closest('.vessel-link')) {
+                        const target = e.target.closest('.vessel-link'); const { vesselName, vesselImo } = target.dataset; showVesselView(vesselName, vesselImo);
+                    }
+                });
+                const ciiDistributionEl = document.getElementById('cii-distribution'); ciiDistributionEl.innerHTML = '';
+                const ciiCounts = vessels.filter(v => v.ciiRequired).reduce((acc, v) => ({...acc, [v.cii]: (acc[v.cii] || 0) + 1}), {});
+                const totalVessels = vessels.filter(v => v.ciiRequired).length;
+                ['A', 'B', 'C', 'D', 'E'].forEach(rating => {
+                    const count = ciiCounts[rating] || 0; const percentage = totalVessels > 0 ? (count / totalVessels) * 100 : 0;
+                    const ciiColors = { 'A': 'bg-green-500', 'B': 'bg-green-400', 'C': 'bg-yellow-400', 'D': 'bg-orange-500', 'E': 'bg-red-500' };
+                    ciiDistributionEl.innerHTML += `<div class="flex items-center"><span class="w-8 text-secondary font-bold">${rating}</span><div class="flex-grow bg-gray-700 rounded-full h-2.5"><div class="${ciiColors[rating]} h-2.5 rounded-full" style="width: ${percentage}%"></div></div><span class="w-12 text-right text-main">${count}</span></div>`;
+                });
+                updateAlarmBell();
+                document.querySelectorAll('.time-selector-stacked').forEach(selector => {
+                    selector.addEventListener('click', (e) => {
+                        e.stopPropagation(); if (e.target.tagName === 'BUTTON') { updateKpiCard(selector.dataset.target, e.target.dataset.period); }
+                    });
+                });
+                document.getElementById('cii-distribution-card').addEventListener('click', () => { renderCiiProjectionChart(); openModal('ciiDetailModal'); });
+                document.getElementById('closeCiiDetailModal').addEventListener('click', () => closeModal('ciiDetailModal'));
+                document.getElementById('fueleu-card').addEventListener('click', () => { renderFuelEuChart(); openModal('fuelEuDetailModal'); });
+                document.getElementById('closeFuelEuDetailModal').addEventListener('click', () => closeModal('fuelEuDetailModal'));
+                document.getElementById('financial-summary-info-btn').addEventListener('click', () => openModal('financialSummaryModal'));
+                document.getElementById('closeFinancialSummaryModal').addEventListener('click', () => closeModal('financialSummaryModal'));
+                toggleSidebar(); // Start with sidebar minimized
+            };
+
+            init();
+        });
+    </script>
+</body>
+</html>
+
+
