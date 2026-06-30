@@ -1,6 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- KM/Kongsberg content visibility bootstrap. Runs first and synchronously so
+         the data-km attribute is set on <html> before any content paints — this
+         avoids a flash of Kongsberg-branded content for returning users who have
+         it toggled on. Default state (no flag) is OFF: every element tagged
+         .km-only is hidden by the CSS rule defined later in this document.
+         Toggle mechanisms (both update the same localStorage flag):
+           • URL parameter:  ?km=on  or  ?km=off
+           • Keyboard sequence k, m, k, m typed anywhere (wired up later, in the
+             main script block, since it needs the full DOM) -->
+    <script>
+        (function() {
+            try {
+                var STORAGE_KEY = 'mea_km';
+                var html = document.documentElement;
+                var on = localStorage.getItem(STORAGE_KEY) === '1';
+                var params = new URLSearchParams(window.location.search);
+                if (params.has('km')) {
+                    var v = params.get('km').toLowerCase();
+                    if (v === 'on' || v === '1' || v === 'true') {
+                        on = true;
+                        localStorage.setItem(STORAGE_KEY, '1');
+                    } else if (v === 'off' || v === '0' || v === 'false') {
+                        on = false;
+                        localStorage.setItem(STORAGE_KEY, '0');
+                    }
+                }
+                html.setAttribute('data-km', on ? 'on' : 'off');
+            } catch (e) {
+                // localStorage unavailable (privacy mode, sandboxed iframe) — default stays hidden
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maritime Emissions — Commercial Exposure Atlas</title>
@@ -427,9 +459,75 @@
             color: #E0EFFF;
             font-weight: 600;
         }
+        /* The "Estimated bill" pill — visually larger / bolder so the cost figure
+           is the dominant element in the at-a-glance row. */
+        .sh-at-a-glance .ag-val-bill {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
         .sh-at-a-glance .ag-sep {
             color: #38BDF8;
             opacity: 0.4;
+        }
+
+        /* Header-level cost display — used in the Vessel scenario page title and the
+           Scenario result heading. Sky-blue and bold so the bottom-line figure is
+           visible without scrolling to the at-a-glance row. */
+        .sh-header-cost {
+            color: #38BDF8;
+            font-weight: 700;
+            font-size: 0.92em;
+            letter-spacing: 0.01em;
+        }
+        .sh-header-cost:empty { display: none; }
+        .sh-header-cost.sh-header-cost-muted {
+            color: #94A3B8;
+            font-weight: 600;
+        }
+        .sh-header-cost.sh-header-cost-warn {
+            color: #FBBF24;
+        }
+
+        /* Inline cost-figure highlight inside the meeting card / talk-track text.
+           Numbers get a slightly larger, bolder, sky-blue treatment so readers
+           scanning the paragraph can find the bottom-line figure immediately. */
+        .exposure-num {
+            color: #38BDF8;
+            font-weight: 700;
+            font-size: 1.12em;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+        /* Maritime Emissions 101 — three compact "lens" cards at the top of Start Here.
+           Each card sits behind one of the user-facing commercial questions:
+           Reporting (who must file?), Payment (who carries cost?), Attractiveness
+           (will it still get chartered?). Border colour matches the lens hue. */
+        .m101-card {
+            background: rgba(13, 26, 46, 0.7);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            border-left-width: 3px;
+            border-radius: 6px;
+            padding: 14px 14px 12px 14px;
+        }
+        .m101-eyebrow {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .m101-q {
+            font-size: 13px;
+            color: #E0EFFF;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .m101-body {
+            font-size: 11.5px;
+            color: #A0B3D1;
+            line-height: 1.55;
         }
 
         /* Abbreviations (e.g. DOC, MRV) get a subtle dotted underline to show they're hoverable */
@@ -438,6 +536,73 @@
             text-underline-offset: 3px;
             cursor: help;
         }
+
+        /* Governance taxonomy — three small badges that label every key claim by
+           its epistemic status:
+             • LEGAL FACT — adopted and in force, sourceable
+             • PENDING RULE — proposed / under adoption, scenario only
+             • COMMERCIAL ASSUMPTION — price, pooling value, charter allocation,
+               fuel premium, operational profile (date-stamped market input)
+           Used inline where claims appear and in the Cost Stack and Hidden Factors pages
+           as a legend so the reader knows how to read the rest of the atlas. */
+        .gov-tag {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            line-height: 1.4;
+            vertical-align: middle;
+            border: 1px solid;
+            margin: 0 4px 0 2px;
+            white-space: nowrap;
+        }
+        .gov-tag-legal {
+            color: #6EE7B7;
+            border-color: rgba(110, 231, 183, 0.45);
+            background: rgba(110, 231, 183, 0.07);
+        }
+        .gov-tag-pending {
+            color: #FBBF24;
+            border-color: rgba(251, 191, 36, 0.45);
+            background: rgba(251, 191, 36, 0.07);
+        }
+        .gov-tag-commercial {
+            color: #38BDF8;
+            border-color: rgba(56, 189, 248, 0.45);
+            background: rgba(56, 189, 248, 0.07);
+        }
+
+        /* Compact legend block used at the top of long pages (Cost Stack, Hidden
+           Factors) so the reader sees the taxonomy before encountering the badges. */
+        .gov-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 10px 12px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 6px;
+            background: linear-gradient(135deg, rgba(15, 30, 54, 0.6), rgba(13, 26, 46, 0.6));
+            margin-bottom: 16px;
+        }
+        .gov-legend-intro {
+            font-size: 10px;
+            color: #A0B3D1;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-right: 8px;
+            align-self: center;
+        }
+        .gov-legend-item {
+            font-size: 11px;
+            color: #A0B3D1;
+            display: inline-flex;
+            align-items: center;
+        }
+        .gov-legend-item .gov-tag { margin-right: 6px; }
 
         /* Year buttons in Start Here Step 3 */
         .year-btn {
@@ -460,29 +625,11 @@
         }
 
         /* ============================================================
-           BRIEFING vs FULL ATLAS MODE
-           CSS class names: .briefing-only (hidden in Full Atlas) /
-                            .full-atlas-only (hidden in Briefing).
-           Body attribute: data-mode="briefing" / data-mode="atlas".
+           LEGACY CLASS MARKERS — .briefing-only / .full-atlas-only
+           These classes no longer hide anything (view-mode toggle removed).
+           They survive as semantic markers in the HTML for any future
+           re-introduction, but never affect display.
            ============================================================ */
-        .mode-btn {
-            padding: 5px 12px;
-            border-radius: 5px;
-            font-size: 11px;
-            background: transparent;
-            color: #A0B3D1;
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: all 0.15s;
-            font-weight: 500;
-        }
-        .mode-btn:hover { color: #E0EFFF; }
-        .mode-btn.active {
-            background: rgba(56,189,248,0.18);
-            color: #E0EFFF;
-            border-color: rgba(56,189,248,0.4);
-            font-weight: 600;
-        }
 
         /* Segment Deep-Dive sub-tabs */
         .sd-subtab-btn {
@@ -532,9 +679,7 @@
             color: #A0B3D1;
             line-height: 1.45;
         }
-        /* By default both classes are visible. body[data-mode] flips them. */
-        body[data-mode="briefing"] .full-atlas-only { display: none !important; }
-        body[data-mode="atlas"] .briefing-only { display: none !important; }
+        /* By default both classes are visible (mode-based hiding removed). */
 
         /* ============================================================
            SCENARIO RESULT PANEL — bigger fonts for screen-share
@@ -617,6 +762,34 @@
         .reg-table .applies-no    { color: #6B7F9F; }
         .reg-table .applies-ind   { color: #C084FC; font-weight: 600; }
 
+        /* Clickable regulation name inside a table — opens the same regulation
+           detail modal used by the Phase-in Timeline (showRegModal). Styled to
+           read as tappable without looking like a generic hyperlink: dotted
+           underline + a small chevron hint, sky-blue on hover. */
+        .reg-table-link {
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font: inherit;
+            font-weight: 600;
+            color: #E0EFFF;
+            cursor: pointer;
+            text-decoration: underline dotted rgba(56,189,248,0.45);
+            text-underline-offset: 3px;
+            transition: color 0.15s;
+        }
+        .reg-table-link:hover {
+            color: #38BDF8;
+            text-decoration-color: #38BDF8;
+        }
+        .reg-table-link-hint {
+            font-size: 9px;
+            color: #4FB0D9;
+            opacity: 0.7;
+            margin-left: 3px;
+        }
+
         /* Talk-track callout */
         .talk-track {
             background: linear-gradient(135deg, rgba(45,212,191,0.06), rgba(56,189,248,0.04));
@@ -637,6 +810,20 @@
             color: #E0EFFF;
             line-height: 1.55;
         }
+
+        /* ============================================================
+           KM/KONGSBERG CONTENT VISIBILITY TOGGLE
+           Every element carrying the .km-only class is hidden by default.
+           The bootstrap script in <head> sets data-km="on" on <html> when the
+           URL parameter ?km=on was used, or when localStorage remembers a
+           previous toggle. The keyboard sequence k-m-k-m (wired up in the main
+           script, see setupKmKeySequence) flips the same attribute + storage
+           flag at runtime. `display: revert` un-hides using whatever display
+           value the element's own classes would otherwise produce (block,
+           flex, inline, etc.) rather than guessing one value for every case.
+           ============================================================ */
+        .km-only { display: none !important; }
+        html[data-km="on"] .km-only { display: revert !important; }
 
         /* KM section */
         .km-hero {
@@ -1276,6 +1463,24 @@
             font-weight: 600;
         }
 
+        /* IMO NZF scenario toggle — same visual pattern as build-btn (Newbuild / In
+           operation) but with amber active colour to flag that NZF is a Pending rule
+           scenario (not an in-force regulation). */
+        .nzf-btn {
+            padding: 5px 12px;
+            font-size: 12px;
+            color: #A0B3D1;
+            background: #0D1A2E;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .nzf-btn.active {
+            background: #FBBF24;
+            color: #0D1A2E;
+            font-weight: 600;
+        }
+
         .preset-card {
             background: #122339;
             border: 1px solid #2A446D;
@@ -1471,33 +1676,30 @@
     <header class="main-bg shadow-lg border-b border-gray-700">
         <div class="max-w-[1600px] mx-auto p-4 md:p-6">
             <h1 class="text-xl md:text-2xl font-bold">Maritime Emissions &mdash; Commercial Exposure Atlas</h1>
-            <p class="text-secondary text-sm mt-1">Guided commercial exposure assessment for LNG, Offshore, and Merchant vessels &mdash; with Kongsberg Maritime relevance mapping</p>
+            <p class="text-secondary text-sm mt-1">Guided commercial exposure assessment for LNG, Offshore, and Merchant vessels<span class="km-only"> &mdash; with Kongsberg Maritime relevance mapping</span></p>
         </div>
     </header>
 
-    <!-- Tab Navigation: tabs on the left (scrollable with fade), View mode toggle pinned right -->
+    <!-- Tab Navigation: full set of tabs always visible. The strip is horizontally
+         scrollable with chevron affordances + wheel support, so all features are one
+         scroll/click away regardless of viewport. No view-mode toggle — every tab
+         is accessible at all times. -->
     <nav class="main-bg border-b border-gray-700 sticky top-0 z-[2000]">
         <div class="max-w-[1600px] mx-auto px-4 md:px-6 py-2 flex items-center gap-3">
             <div class="tab-scroll-wrap">
                 <button class="tab-scroll-arrow tab-scroll-left" id="tab-scroll-left" aria-label="Scroll tabs left">&#8249;</button>
                 <div class="tab-scroll" id="tab-scroll">
-                    <button class="tab-btn active" data-tab="start">Start here</button>
+                    <button class="tab-btn active" data-tab="m101">Maritime Emissions 101</button>
+                    <button class="tab-btn" data-tab="start">Vessel scenario</button>
                     <button class="tab-btn" data-tab="playground">Exposure Calculator</button>
-                    <button class="tab-btn full-atlas-only" data-tab="universe">Regulatory Universe</button>
-                    <button class="tab-btn full-atlas-only" data-tab="matrix">Segment Applicability</button>
-                    <button class="tab-btn full-atlas-only" data-tab="timeline">Phase-in Timeline</button>
+                    <button class="tab-btn" data-tab="universe">Regulatory Universe</button>
+                    <button class="tab-btn" data-tab="matrix">Segment Applicability</button>
+                    <button class="tab-btn" data-tab="timeline">Phase-in Timeline</button>
                     <button class="tab-btn" data-tab="offshore">Segment Deep-Dives</button>
-                    <button class="tab-btn full-atlas-only" data-tab="cost-stack">Cost Stack</button>
-                    <button class="tab-btn full-atlas-only" data-tab="hidden">Hidden Factors</button>
+                    <button class="tab-btn" data-tab="cost-stack">Cost Stack</button>
+                    <button class="tab-btn" data-tab="hidden">Hidden Factors</button>
                 </div>
                 <button class="tab-scroll-arrow tab-scroll-right" id="tab-scroll-right" aria-label="Scroll tabs right">&#8250;</button>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <span class="text-[10px] text-muted uppercase tracking-wider font-semibold hidden md:inline">View mode:</span>
-                <div id="mode-toggle" class="flex items-center gap-1 bg-[#0D1A2E] rounded-md p-0.5 border border-gray-700">
-                    <button class="mode-btn active" data-mode="briefing" title="Briefing: streamlined meeting view — guided commercial flow">Briefing</button>
-                    <button class="mode-btn" data-mode="atlas" title="Full Atlas: detailed regulatory and commercial reference">Full Atlas</button>
-                </div>
             </div>
         </div>
     </nav>
@@ -1505,14 +1707,179 @@
     <!-- Main Content -->
     <main class="max-w-[1600px] mx-auto p-4 md:p-6">
 
-        <!-- ====================== VIEW 0: START HERE ====================== -->
-        <section id="view-start" class="view-section active">
+        <!-- ====================== VIEW: MARITIME EMISSIONS 101 ======================
+             The default landing page. Educational entry point into the atlas: explains
+             what maritime emissions regulation is actually about in commercial terms,
+             before showing any scenario builder or cost calculation. Three lens cards
+             cover the user's actual mental-model questions; the responsibility table
+             provides the per-regulation breakdown; the KM positioning quote anchors
+             the value proposition. ======================================================= -->
+        <section id="view-m101" class="view-section active">
+            <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-6">
+                <div class="flex items-baseline justify-between flex-wrap gap-2 mb-3">
+                    <h2 class="text-lg font-bold">Maritime Emissions 101: The Regulatory &amp; Commercial Reality</h2>
+                    <p class="text-xs text-muted">Start with the basics</p>
+                </div>
+
+                <p class="text-sm text-secondary leading-relaxed mb-3">Maritime emissions are the gases and particles ships release when they burn fuel or run onboard systems. While they are invisible out at sea, they have become a primary driver of operational cost, compliance, and commercial survival in a strictly regulated market.</p>
+
+                <p class="text-sm text-secondary leading-relaxed mb-3">When a ship operates, it produces emissions from the main engines, auxiliaries, boilers, and port-side power use. To stay aligned with current frameworks like <abbr title="EU Emissions Trading System — cap-and-trade allowance market. Surrender EUAs equal to verified CO₂+CH₄+N₂O emissions.">EU ETS</abbr> and <abbr title="FuelEU Maritime — annual Well-to-Wake GHG intensity standard. €2,400/t VLSFOeq penalty if non-compliant.">FuelEU Maritime</abbr>, the industry must look beyond carbon dioxide (CO&#8322;) alone. Emissions accounting now explicitly measures total greenhouse gas equivalents (<abbr title="CO₂-equivalent — a common unit that converts different greenhouse gases into the warming impact of CO₂, using a Global Warming Potential factor that varies by regulation.">CO&#8322;e</abbr>), forcing operators to account for highly potent climate gases like methane (<abbr title="Methane — a greenhouse gas with much higher near-term warming potential than CO₂. Particularly relevant for LNG-fuelled vessels due to unburned methane slip.">CH&#8324;</abbr>)&mdash;crucial for LNG-fuelled vessels&mdash;and nitrous oxide (<abbr title="Nitrous oxide — a greenhouse gas produced in small quantities by combustion, with a very high Global Warming Potential.">N&#8322;O</abbr>). It also continues to regulate local air pollutants like nitrogen oxides (<abbr title="Nitrogen Oxide engine emissions. Three tiers: I (1990–2010), II (≥2011 global), III (≥2016/2021 inside NECAs).">NO<sub>x</sub></abbr>), sulphur oxides (<abbr title="Sulphur oxide emissions from fuel. 0.50% global cap since 2020; 0.10% inside ECAs since 2015.">SO<sub>x</sub></abbr>), and particulate matter (soot).</p>
+
+                <p class="text-sm text-secondary leading-relaxed">For shipowners and operators, managing these emissions is no longer just a corporate sustainability goal; it is a legal and commercial necessity. It dictates fuel procurement strategies, reporting frameworks, charter party competitiveness, port access rights, and a vessel's attractiveness to both customers and financiers bound by strict green lending criteria.</p>
+
+                <div class="mt-4 pt-4 border-t border-gray-700">
+                    <p class="text-xs uppercase text-sky-400 tracking-wider font-semibold mb-2">Why it matters</p>
+                    <p class="text-sm text-secondary leading-relaxed mb-3">Maritime emissions directly impact a company's bottom line, asset values, and contract compliance:</p>
+                    <ul class="text-sm text-secondary leading-relaxed space-y-2.5 list-none">
+                        <li class="pl-4" style="border-left:2px solid rgba(56,189,248,0.3)"><strong class="text-main">The financial penalty of inefficiency.</strong> Under the <abbr title="EU Emissions Trading System — cap-and-trade allowance market. Surrender EUAs equal to verified CO₂+CH₄+N₂O emissions.">EU ETS</abbr>, every tonne of greenhouse gas emitted translates directly into a requirement to surrender carbon allowances (<abbr title="EU Allowance — the tradeable unit in EU ETS, representing 1 tCO₂e.">EUAs</abbr>). Inefficient operations or poor asset management result in immediate financial penalties.</li>
+                        <li class="pl-4" style="border-left:2px solid rgba(251,191,36,0.3)"><strong class="text-main">FuelEU fuel strategies.</strong> Regulations now penalise the well-to-wake greenhouse gas intensity of the energy consumed onboard. Owners must balance conventional bunker delivery notes (<abbr title="Bunker Delivery Note — the document recording the quantity and quality of fuel supplied to a vessel.">BDNs</abbr>) with verified proofs of sustainability (<abbr title="Proof of Sustainability — third-party verified documentation that an alternative fuel meets the GHG-reduction criteria required to count toward FuelEU compliance.">POS</abbr>) for alternative fuels to avoid heavy compliance deficits.</li>
+                        <li class="pl-4" style="border-left:2px solid rgba(167,139,250,0.3)"><strong class="text-main">Operational variations by sector.</strong> The operational impact depends heavily on the vessel's trade. While a deep-sea merchant ship focuses on minimising emissions per cargo-mile during transit, a coastal or offshore support vessel faces complex challenges. Offshore operators must carefully manage high power demands during safety-critical manoeuvres &mdash; such as holding station on <abbr title="Dynamic Positioning — automatic control of a vessel's position and heading using its own thrusters, without anchors. High continuous power demand relative to transport work.">Dynamic Positioning (DP)</abbr> &mdash; or optimise equipment at berth to meet evolving localised or regional emissions intensity thresholds.</li>
+                    </ul>
+                </div>
+
+                <p class="text-sm text-secondary leading-relaxed mt-4 pt-4 border-t border-gray-700">Ultimately, emission controls shape how equipment is run, how maintenance is planned, and how fuel value chains are tracked from ship to shore. Understanding them is a critical part of modern maritime decision-making.</p>
+            </div>
+
+            <!-- The three commercial lenses -->
+            <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-4">
+                <div class="flex items-baseline gap-3 mb-2 flex-wrap">
+                    <h3 class="font-semibold text-base">Maritime Emissions 101 &mdash; reporting, payment, and vessel attractiveness</h3>
+                    <span class="text-[10px] text-muted italic ml-auto">Three lenses, one framework</span>
+                </div>
+                <p class="text-sm text-secondary leading-relaxed mb-4">Emissions regulation is not just about compliance. It creates <strong class="text-main">reporting duties</strong>, <strong class="text-main">cash costs</strong>, <strong class="text-main">contractual allocation questions</strong>, and <strong class="text-main">vessel attractiveness risk</strong>.</p>
+
+                <!-- Three compact cards — each captures a distinct commercial lens -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                    <div class="m101-card" style="border-left-color:#38BDF8">
+                        <p class="m101-eyebrow" style="color:#38BDF8">Reporting obligation</p>
+                        <p class="m101-q">Who must file what?</p>
+                        <p class="m101-body"><abbr title="EU Monitoring, Reporting and Verification — annual emissions reporting via THETIS-MRV. Data feeds EU ETS and FuelEU compliance.">EU MRV</abbr>, <abbr title="IMO Data Collection System — annual fuel-oil consumption data reported to flag state and IMO. No direct cost.">IMO DCS</abbr>, <abbr title="Ship Energy Efficiency Management Plan — Parts I (ops efficiency), II (DCS data plan), III (CII implementation plan since 2023).">SEEMP III</abbr>: the <abbr title="Document of Compliance — the ISM Code certificate held by the shipping company managing the vessel">DOC</abbr> holder is the regulated party that files the report, signs the surrender, holds the certificate. This is a <strong>legal duty</strong>, not a commercial choice.</p>
+                    </div>
+                    <div class="m101-card" style="border-left-color:#FBBF24">
+                        <p class="m101-eyebrow" style="color:#FBBF24">Payment exposure</p>
+                        <p class="m101-q">Who carries the cash cost?</p>
+                        <p class="m101-body"><abbr title="EU Emissions Trading System — cap-and-trade allowance market. Surrender EUAs equal to verified CO₂+CH₄+N₂O emissions.">EU ETS</abbr> surrender, <abbr title="FuelEU Maritime — annual Well-to-Wake GHG intensity standard. €2,400/t VLSFOeq penalty if non-compliant.">FuelEU</abbr> penalty, <abbr title="IMO Net-Zero Framework — pending global GFI fuel-intensity standard plus carbon pricing. Adoption vote scheduled Dec 2026.">IMO NZF</abbr> (if adopted): the default sits with the DOC holder, but <abbr title="Baltic and International Maritime Council — publishes the standard charter party clauses used to allocate EU ETS / FuelEU costs between owner and charterer.">BIMCO</abbr> clauses pass the cost on to the <strong>charterer</strong> in time / voyage charters &mdash; <em>where the suitable clauses are included</em>. Bareboat charter shifts everything.</p>
+                    </div>
+                    <div class="m101-card" style="border-left-color:#A78BFA">
+                        <p class="m101-eyebrow" style="color:#A78BFA">Commercial attractiveness</p>
+                        <p class="m101-q">Will the vessel still get chartered?</p>
+                        <p class="m101-body"><abbr title="Carbon Intensity Indicator — operational rating A–E based on gCO₂/(capacity × distance). D-for-3 or E-for-1 triggers a corrective action plan.">CII</abbr> rating, FuelEU score, asset register: D / E ships lose charter preference, attract <strong><abbr title="Sale and Purchase — the second-hand ship market. Vessels with poor environmental ratings sell at a discount.">S&amp;P</abbr> discount</strong>, and face higher financing and insurance premiums. Reputation and tradeability are at risk even when no penalty is paid.</p>
+                    </div>
+                </div>
+
+                <!-- Full responsibility table — always visible (no show/hide). Each
+                     regulation name is clickable and opens the same regulation detail
+                     modal used on the Phase-in Timeline (showRegModal), so a reader who
+                     wants the full picture (status, scope, mechanism, connections) gets
+                     it without leaving this page. -->
+                <p class="text-xs text-main font-semibold mb-1">Responsible vs Paying vs Exposed &mdash; by regulation</p>
+                <p class="text-[10px] text-muted mb-2">Click a regulation name for the full detail (status, scope, mechanism, connections)</p>
+                <div class="card-bg-deep rounded-lg overflow-x-auto mb-4">
+                    <table class="reg-table">
+                        <thead>
+                            <tr>
+                                <th>Regulation</th>
+                                <th>Responsible<br/><span class="text-[10px] text-muted font-normal">legal party (regulated)</span></th>
+                                <th>Paying<br/><span class="text-[10px] text-muted font-normal">cash cost carrier</span></th>
+                                <th>Exposed<br/><span class="text-[10px] text-muted font-normal">broader commercial impact</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="mrv">EU MRV</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>DOC holder (shipping company) files the annual emissions report &mdash; verified.</td>
+                                <td>Owner / DOC holder bears the verifier cost. <em>No surrender cost.</em></td>
+                                <td>The voyage data is now visible. Charterers, brokers, banks, and insurers reference MRV when assessing the vessel. Poor data quality is a commercial liability.</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="ets">EU ETS</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>DOC holder surrenders the <abbr title="EU Allowance — the tradeable unit in EU ETS, representing 1 tCO₂e.">EUAs</abbr> on the EU Union Registry.</td>
+                                <td>Default: DOC holder. BIMCO ETSA 2022 passes the cost to the <strong>charterer</strong> in time-charter; voyage-charter clauses split it. Bareboat &rarr; bareboat charterer.</td>
+                                <td>The EUA cost shows up in chartering negotiations, fuel contracts, voyage P&amp;L. Disputes are now appearing where charterers refused to transfer EUAs after redelivery (English law).</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="fueleu">FuelEU Maritime</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>DOC holder files the FuelEU report and is liable for any penalty.</td>
+                                <td>Default: DOC holder. BIMCO FuelEU 2023 clauses pass cost to the charterer where included. Pool participants share cost / surplus.</td>
+                                <td>Compliance surplus has commercial value (Article 21 pooling); deficit becomes a penalty risk. Pool counterparties become commercial partners.</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="dcs">IMO DCS</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>DOC holder files annual data to flag State (no penalty).</td>
+                                <td>Owner / DOC holder operates the data system. <em>No direct cost.</em></td>
+                                <td>DCS data feeds the CII calculation downstream &mdash; which drives commercial attractiveness.</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="cii">CII Rating (A&ndash;E)</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>DOC holder; rating attaches to the ship.</td>
+                                <td>No direct financial penalty (D-for-3 / E-for-1 requires a corrective action plan only).</td>
+                                <td>The actual penalty is commercial: D / E ships lose charter preference, attract S&amp;P discount, face higher financing premium. This is the largest "soft" cost on the page.</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="seemp">SEEMP III</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>DOC holder maintains and updates the plan; verified 3-yearly.</td>
+                                <td>Owner / DOC holder bears verifier and internal admin cost.</td>
+                                <td>Required for <abbr title="International Air Pollution Prevention certificate — required under MARPOL Annex VI for ships engaged on international voyages.">IAPP</abbr> renewal &mdash; gap here can block port-state inspection clearance.</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="eca">ECAs (SO<sub>x</sub> / NO<sub>x</sub>)</button><span class="reg-table-link-hint">&#9432;</span></td>
+                                <td>Master / operator on the bridge; flag State enforcement.</td>
+                                <td>Owner / operator: fuel switch cost or scrubber capex / opex.</td>
+                                <td>Operating profile dictates fuel choice; non-compliance is a port-state detention risk, not just a fine.</td>
+                            </tr>
+                            <tr>
+                                <td><button type="button" class="reg-table-link" data-reg-id="nzf">IMO NZF</button><span class="reg-table-link-hint">&#9432;</span> <span class="gov-tag gov-tag-pending">Pending rule</span></td>
+                                <td>Expected: DOC holder, mirroring ETS pattern.</td>
+                                <td>TBD. Industry expects future BIMCO clauses to pass cost to the charterer.</td>
+                                <td>If adopted, adds a global cost layer on top of all the above &mdash; a third pricing mechanism for the same molecule.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- KM positioning quote -->
+                <div class="card-bg-deep rounded-lg p-4 border-l-2 border-sky-400 km-only" style="background:linear-gradient(135deg,rgba(45,212,191,0.06),rgba(56,189,248,0.04))">
+                    <p class="text-[10px] uppercase text-sky-400 tracking-wider mb-2 font-semibold">Why this matters for Kongsberg Maritime</p>
+                    <p class="text-sm text-secondary leading-relaxed">Emissions regulations do not only create reporting obligations. They create <strong class="text-main">commercial disputes about responsibility, cost allocation, and vessel attractiveness</strong>. K-IMS, K-Fleet, and EFMS value is not just calculating emissions &mdash; it is <strong class="text-main">preserving the operational evidence</strong> needed to explain <em>who caused the exposure, who must report it, and who should pay for it</em>.</p>
+                </div>
+            </div>
+
+            <!-- Governance taxonomy legend — same component as on Cost Stack and Hidden Factors.
+                 Placing it on the 101 page so readers learn the three claim categories
+                 (Legal fact / Pending rule / Commercial assumption) before encountering
+                 the badges later on. -->
+            <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-4">
+                <h3 class="font-semibold text-base mb-2">How to read this atlas</h3>
+                <p class="text-sm text-secondary leading-relaxed mb-3">Every claim on this atlas falls into one of three categories. Watch for the small badges next to numbers and rules &mdash; they tell you how confident to be in the figure.</p>
+                <div class="gov-legend">
+                    <span class="gov-legend-intro">Three claim categories:</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-legal">Legal fact</span>adopted &amp; in force, sourceable</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-pending">Pending rule</span>draft / in adoption &mdash; scenario only</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-commercial">Commercial assumption</span>price / pooling / charter / fuel premium</span>
+                </div>
+            </div>
+
+            <!-- CTA to move to the next step in the user journey -->
+            <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-4">
+                <p class="text-sm text-secondary leading-relaxed mb-3">Ready to apply this to a specific case?</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="sh-cta sh-cta-primary" data-target-tab="start">Build a vessel scenario <span class="opacity-60">&rarr;</span></button>
+                    <button class="sh-cta" data-target-tab="playground">Go straight to the Exposure Calculator</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================== VIEW: VESSEL SCENARIO (formerly "Start here") ====================== -->
+        <section id="view-start" class="view-section">
             <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-6">
                 <div class="flex items-baseline justify-between flex-wrap gap-2 mb-2">
-                    <h2 class="text-lg font-bold">Start here<span class="active-seg-tag" data-seg-source="state">— Merchant</span></h2>
+                    <h2 class="text-lg font-bold flex items-baseline gap-2 flex-wrap">
+                        <span>Vessel scenario<span class="active-seg-tag" data-seg-source="state">— Merchant</span></span>
+                        <span id="sh-page-cost" class="sh-header-cost"></span>
+                    </h2>
                     <p class="text-xs text-muted">Four steps to your regulatory exposure</p>
                 </div>
-                <p class="text-sm text-secondary leading-relaxed">Tell me your vessel scenario, and I'll show you what matters, what it may cost, who may carry the exposure, and how Kongsberg Maritime can help. Pick a <strong class="text-main">segment</strong>, a <strong class="text-main">vessel</strong>, an <strong class="text-main">operation</strong>, and a <strong class="text-main">charter structure</strong> &mdash; the panel below summarises the commercial answer. Every choice carries through to the Exposure Calculator if you want to fine-tune.</p>
+                <p class="text-sm text-secondary leading-relaxed">Tell me your vessel scenario, and I'll show you what matters, what it may cost, who may carry the exposure<span class="km-only">, and how Kongsberg Maritime can help</span>. Pick a <strong class="text-main">segment</strong>, a <strong class="text-main">vessel</strong>, an <strong class="text-main">operation</strong>, and a <strong class="text-main">charter structure</strong> &mdash; the panel below summarises the commercial answer. Every choice carries through to the Exposure Calculator if you want to fine-tune.</p>
             </div>
 
             <!-- Step 1: Segment -->
@@ -1585,7 +1952,10 @@
                 <div class="flex items-baseline gap-3 mb-4 flex-wrap">
                     <span class="step-badge">4</span>
                     <div class="flex-1">
-                        <h3 class="font-semibold">Scenario result</h3>
+                        <h3 class="font-semibold flex items-baseline gap-2 flex-wrap">
+                            <span>Scenario result</span>
+                            <span id="sh-result-cost" class="sh-header-cost"></span>
+                        </h3>
                         <p class="text-xs text-muted mt-0.5">The commercial answer for the case you picked. Easy to read first; expand below for the full detail.</p>
                     </div>
                     <span class="briefing-only text-[10px] text-muted italic">Indicative commercial insight &mdash; not a compliance certification</span>
@@ -1687,7 +2057,7 @@
             </div>
 
             <!-- ============== HOW KM BRIDGES THE GAP ============== -->
-            <div id="km-hero-section" class="km-hero mb-4">
+            <div id="km-hero-section" class="km-hero mb-4 km-only">
                 <p class="km-eyebrow">How Kongsberg Maritime bridges the gap</p>
                 <h3 id="km-headline" class="km-headline"></h3>
                 <p id="km-message" class="km-message"></p>
@@ -1695,7 +2065,7 @@
             </div>
 
             <!-- KM solution mapping cards -->
-            <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-4">
+            <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-4 km-only">
                 <div class="flex items-baseline justify-between flex-wrap gap-2 mb-3">
                     <div>
                         <h3 class="font-semibold">Practical gaps &mdash; where KM is relevant</h3>
@@ -2170,19 +2540,28 @@
                     <!-- Threshold tier indicator (showed when relevant) -->
                     <div id="pg-tier-indicator" class="mb-4"></div>
 
-                    <!-- Reference year + vessel status at the bottom of the card -->
+                    <!-- Reference year + vessel status + IMO NZF scenario toggle at the bottom of the card -->
                     <div class="flex items-center gap-2 flex-wrap text-xs pt-3 border-t border-gray-700">
                         <span class="text-muted" title="The reporting / operating year — the regulations applied are those in force during this calendar year. Deadlines shown in the reporting calendar use this year as the reporting period.">Reference year (operating year):</span>
                         <select id="pg-year" class="bg-[#0D1A2E] border border-gray-700 rounded px-2 py-1 text-main">
                             <option value="2025">2025</option>
                             <option value="2026" selected>2026</option>
                             <option value="2027">2027 (offshore ETS in scope)</option>
-                            <option value="2028">2028 (NZF assumed in force)</option>
+                            <option value="2028">2028 (NZF if adopted)</option>
                         </select>
                         <span class="text-muted ml-3" title="EEDI applies to newbuilds; EEXI applies to vessels already in operation. The market and reporting instruments (ETS / FuelEU / MRV / NZF / CII) apply regardless.">Vessel status:</span>
                         <div class="inline-flex rounded-md overflow-hidden border border-gray-700">
                             <button class="build-btn active" data-build="new">Newbuild</button>
                             <button class="build-btn" data-build="existing">In operation</button>
+                        </div>
+                        <!-- IMO NZF scenario toggle. NZF is a Pending rule (adoption vote scheduled
+                             4 Dec 2026; in force ~2028 if adopted). The toggle lets the user choose
+                             whether to model the NZF layer in 2028 cost calculations. -->
+                        <span class="text-muted ml-3" title="IMO Net-Zero Framework — global GFI mechanism, pending adoption. Toggle off to model 2028 without the NZF layer.">IMO NZF scenario:</span>
+                        <span class="gov-tag gov-tag-pending">Pending rule</span>
+                        <div class="inline-flex rounded-md overflow-hidden border border-gray-700">
+                            <button class="nzf-btn active" data-nzf="on" title="Include the IMO NZF GFI charge in 2028 cost calculations (modelled at ~€92/tCO₂e Tier 2)">Include</button>
+                            <button class="nzf-btn" data-nzf="off" title="Exclude NZF — show the 2028 scenario without the pending NZF layer">Exclude</button>
                         </div>
                     </div>
                 </div>
@@ -2233,6 +2612,28 @@
                                 <p><strong class="text-main">ECA geometry</strong> (IMO MARPOL Annex VI) &mdash; dictates <em>what fuel you burn</em>: 0.10% sulphur inside an ECA vs 0.50% globally. Every ship in the area is subject to this rule. Comply by switching to low-S fuel <em>or</em> using an exhaust gas cleaning system (scrubber) with equivalent SO<sub>x</sub> reduction.</p>
                                 <p><strong class="text-main">EU ETS geometry</strong> (Directive 2003/87/EC as amended) &mdash; dictates <em>who pays for CO<sub>2</sub></em>. Applies to voyages arriving at or departing from an EU/EEA port &mdash; regardless of whether the water is also an ECA.</p>
                                 <p class="text-muted italic">Example: Angola &rarr; Rotterdam pays EU ETS on 50% of the voyage (the extra-EEA leg), but only switches to ECA-compliant fuel once it enters the English Channel / North Sea SECA.</p>
+                            </div>
+                        </div>
+
+                        <!-- Norway/Iceland FuelEU caveat — important for Norway-based KM tool.
+                             Five regimes share words ("EU", "EEA", "port") but use different
+                             geographic logic. FuelEU is the trickiest because EEA incorporation
+                             is still pending for Norway and Iceland. -->
+                        <div id="pg-noreea-info" class="mt-3 p-3 rounded-md" style="background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.22);">
+                            <div class="flex items-start justify-between gap-2">
+                                <p class="text-xs font-semibold text-amber-300 flex items-center gap-2 flex-1">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                                    <span>Norway / Iceland: FuelEU treatment is a known wrinkle &mdash; map is worst-case</span>
+                                    <span class="gov-tag gov-tag-legal">Legal fact</span>
+                                </p>
+                                <button id="pg-noreea-info-toggle" class="text-amber-300 hover:text-white cursor-pointer flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;line-height:1;border:1px solid rgba(251,191,36,0.35);border-radius:4px;background:rgba(251,191,36,0.10);" title="Expand FuelEU/EEA note">
+                                    <span id="pg-noreea-info-icon" style="font-size:16px;font-weight:600;">+</span>
+                                </button>
+                            </div>
+                            <div id="pg-noreea-info-body" class="text-[11px] text-secondary space-y-1.5 leading-relaxed mt-2 hidden">
+                                <p><strong class="text-main">EU ETS &amp; EU MRV</strong> already apply to Norwegian and Icelandic ports &mdash; the ETS Directive and MRV Regulation were incorporated into the EEA Agreement. Voyages calling at Stavanger, Bergen, or Reykjavik count for ETS scoping today.</p>
+                                <p><strong class="text-main">FuelEU Maritime</strong> &mdash; the EEA incorporation is <em>still pending</em>. Until it lands, Norwegian and Icelandic ports may be treated as third-country ports for FuelEU scoping. The calculator on this page applies the conservative (worst-case) assumption that they are in-EEA &mdash; meaning the FuelEU exposure shown may be higher than the actual contractual position. Verify with the verifier before commercial commitments.</p>
+                                <p class="text-muted italic">See <em>Hidden Factors &rarr; EEA Wrinkle</em> and <em>Geography</em> for the full context.</p>
                             </div>
                         </div>
 
@@ -2387,7 +2788,7 @@
                         <h3 class="font-bold text-sm">Mitigation levers — how to reduce the exposure</h3>
                         <p class="text-xs text-muted">Ranges based on Q1 2026 market prices &middot; EUA &asymp; &euro;85/t &middot; VLSFO &asymp; $465/mt</p>
                     </div>
-                    <p class="text-xs text-secondary mb-4 leading-relaxed">The bill above assumes <strong class="text-main">default fossil fuel and no mitigation actions</strong>. Owners have four practical levers, each with a different cost / abatement profile. The break-even point depends on EUA price, fuel price differential, and where the vessel sits on the FuelEU intensity curve. Today, biofuel blends are already cheaper than VLSFO+ETS on intra-EU voyages.</p>
+                    <p class="text-xs text-secondary mb-4 leading-relaxed">The bill above assumes <strong class="text-main">default fossil fuel and no mitigation actions</strong>. Owners have four practical levers, each with a different cost / abatement profile. The break-even point depends on <strong>fuel premium, EUA price, the vessel's FuelEU intensity balance, RED-II certification of the bio-supply, physical consumption, and pooling value</strong> &mdash; biofuel blends <em>can</em> be economically attractive on intra-EU voyages, but this is not universal and depends on the conditions above.</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                         <!-- Biofuels -->
@@ -2401,7 +2802,7 @@
                                 <div>FuelEU surplus: <span class="text-emerald-400">$80&ndash;120/mt fuel</span></div>
                                 <div>Break-even EUA: <span class="text-main">~&euro;85&ndash;140/t</span></div>
                             </div>
-                            <p class="text-[10px] text-emerald-400 mt-2 font-semibold">Net cheaper than VLSFO on intra-EU voyages today</p>
+                            <p class="text-[10px] text-emerald-400 mt-2 font-semibold">Can be net-cheaper than VLSFO on intra-EU voyages, conditional on fuel premium + EUA price</p>
                         </div>
 
                         <!-- Slow steaming -->
@@ -2435,22 +2836,22 @@
                         <!-- FuelEU pooling -->
                         <div class="card-bg-deep rounded-lg p-3 border-l-2" style="border-color:#A78BFA">
                             <p class="text-[10px] uppercase font-semibold tracking-wider mb-1" style="color:#A78BFA">Article 21 pooling</p>
-                            <p class="text-sm font-semibold text-main mb-1">FuelEU surplus trading</p>
-                            <p class="text-[11px] text-secondary leading-relaxed mb-2">Vessels overcomplying with FuelEU generate "compliance surplus" measurable in tCO₂e. Article 21 lets you pool with other ships in your fleet, or trade with third parties. Market emerged in 2025.</p>
+                            <p class="text-sm font-semibold text-main mb-1">FuelEU compliance pooling</p>
+                            <p class="text-[11px] text-secondary leading-relaxed mb-2">Vessels that over-comply with FuelEU generate "compliance surplus" measurable in tCO₂e. Article 21 allows pooling that surplus with other ships in the same fleet, or with third-party operators via commercial pooling arrangements. <strong>There is no central EU registry and surplus is not freely exchange-traded</strong> &mdash; it moves only inside Article 21 pools.</p>
                             <div class="text-[10px] text-muted space-y-0.5 border-t border-gray-700 pt-2">
-                                <div>Pool price (Q1 2026): <span class="text-main">~&euro;185/tCO₂e</span></div>
-                                <div>Non-compliance penalty: <span class="text-red-400">&euro;400/tCO₂e</span></div>
-                                <div>Spread (savings): <span class="text-emerald-400">&euro;215/tCO₂e</span></div>
+                                <div>Non-compliance penalty: <span class="text-red-400">&euro;2,400/t VLSFO-eq</span> <span class="text-[9px]">(legal fact)</span></div>
+                                <div>Implied marginal pool value: <span class="text-main">~&euro;185/tCO₂e</span> <span class="text-[9px]">(illustrative &mdash; market indication, Q1 2026)</span></div>
+                                <div>Spread (savings): <span class="text-emerald-400">~&euro;215/tCO₂e</span> <span class="text-[9px]">(commercial assumption)</span></div>
                                 <div>Capex: <span class="text-main">~Zero (commercial)</span></div>
                             </div>
-                            <p class="text-[10px] text-purple-400 mt-2 font-semibold">Trade your way out, not technologically</p>
+                            <p class="text-[10px] text-purple-400 mt-2 font-semibold">Pool your way out, not necessarily technologically</p>
                         </div>
                     </div>
 
                     <!-- Break-even economics callout -->
                     <div class="card-bg-deep rounded-lg p-4 border-l-2 border-sky-400 mb-3">
                         <p class="text-xs font-semibold text-sky-400 mb-2">The fuel-economics inversion (2026 onwards)</p>
-                        <p class="text-[11px] text-secondary leading-relaxed">At Q1 2026 prices, <strong class="text-main">B30 on an intra-EU voyage delivers a $128/mt cost <em>advantage</em> over straight VLSFO</strong> once ETS surrender + FuelEU compliance are netted out. On an extra-EU voyage (50% ETS scope) B30 is still close to break-even. The headline biofuel "premium" is misleading because it ignores the avoided EUA + FuelEU costs. This is the inversion most cost-stack tools don't show.</p>
+                        <p class="text-[11px] text-secondary leading-relaxed">At indicative Q1 2026 prices and a RED-II-certified bio-supply, <strong class="text-main">B30 on an intra-EU voyage can deliver a $128/mt cost <em>advantage</em> over straight VLSFO</strong> once ETS surrender + FuelEU compliance are netted out. On an extra-EU voyage (50% ETS scope) B30 is closer to break-even. The headline biofuel "premium" is misleading when it ignores the avoided EUA + FuelEU costs &mdash; but the actual outcome depends on biofuel premium that week, EUA price, the vessel's FuelEU balance, sustainability certification, and any pooling value. <em>Run the case before the deal.</em></p>
                     </div>
 
                     <div class="card-bg-deep rounded-lg p-4 border-l-2 border-amber-400">
@@ -2472,7 +2873,16 @@
         <section id="view-cost-stack" class="view-section">
             <div class="card-bg rounded-lg shadow-glow p-4 md:p-6">
                 <h2 class="text-lg font-bold">The Cost Stack: One Tonne of CO₂, Three Regulatory Bills</h2>
-                <p class="text-xs text-secondary mt-1 mb-6">A single tonne of CO₂e burned on an intra-EEA voyage from a merchant ship calling at Rotterdam triggers <em>multiple, layered</em> pricing mechanisms. This is the cost-stacking effect.</p>
+                <p class="text-xs text-secondary mt-1 mb-3">A single tonne of CO₂e burned on an intra-EEA voyage from a merchant ship calling at Rotterdam triggers <em>multiple, layered</em> pricing mechanisms. This is the cost-stacking effect.</p>
+
+                <!-- Governance legend — read this first so every number on the page is
+                     interpreted with the right epistemic status. -->
+                <div class="gov-legend">
+                    <span class="gov-legend-intro">How to read this page:</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-legal">Legal fact</span>adopted &amp; in force, sourceable</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-pending">Pending rule</span>draft / in adoption &mdash; scenario only</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-commercial">Commercial assumption</span>price / pooling / charter / fuel premium</span>
+                </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
                     <!-- The big stack viz -->
@@ -2484,7 +2894,7 @@
                                     <option value="2024">2024</option>
                                     <option value="2025">2025</option>
                                     <option value="2026" selected>2026</option>
-                                    <option value="2028">2028 (NZF in force)</option>
+                                    <option value="2028">2028 (NZF if adopted)</option>
                                 </select>
                             </div>
 
@@ -2600,7 +3010,7 @@
                             </div>
                             <div class="watchout-card">
                                 <p class="wo-tag">FuelEU pooling</p>
-                                <p class="wo-text">LNG over-compliers (low-slip ME-GI) generate surplus that can pool with under-compliant operators. Unofficial market price ~&euro;185/tCO₂e vs €400/tCO₂e penalty &mdash; the spread is the negotiating room.</p>
+                                <p class="wo-text">LNG over-compliers (low-slip ME-GI) generate FuelEU surplus that can be pooled with under-compliant operators under Article 21. Indicative pool indication ~&euro;185/tCO₂e vs &euro;2,400/t-VLSFO-eq penalty &mdash; the spread is the negotiating room. <em>No central registry; opaque market.</em></p>
                             </div>
                             <div class="watchout-card">
                                 <p class="wo-tag">RFNBO multiplier cliff</p>
@@ -2611,7 +3021,7 @@
 
                     <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-6">
                         <h3 class="font-semibold mb-2">The 2026 Pricing Event &mdash; Why LNG Changed Character</h3>
-                        <p class="text-sm text-secondary leading-relaxed">Before 1 January 2026, EU ETS priced only CO₂. LNG's lower carbon factor per kWh (about 2.75 tCO₂/t fuel vs 3.114 for VLSFO) gave it a 12&ndash;15% headline advantage on the surrender bill. From 2026, <strong class="text-main">CH₄ and N₂O enter the ETS via the GWP-100 conversion factor</strong>. Methane has a GWP-100 of 25 (and a GWP-20 of about 85), so even a 1% slip materially changes the WtW intensity score that FuelEU Maritime uses. The same hull running the same cargo can produce a 20&ndash;30% different EU bill depending on engine type and slip rate.</p>
+                        <p class="text-sm text-secondary leading-relaxed">Before 1 January 2026, EU ETS priced only CO₂. LNG's lower carbon factor per kWh (about 2.75 tCO₂/t fuel vs 3.114 for VLSFO) gave it a 12&ndash;15% headline advantage on the surrender bill. From 2026, <strong class="text-main">CH₄ and N₂O enter the ETS</strong>. Crucially, <strong>the GWP value depends on the regulation</strong>: EU MRV / ETS use IPCC AR5 100-year values (CH₄ = 28, N₂O = 265); FuelEU references the same AR5 framework via the implementing regulation; legacy IMO documentation and older studies still cite IPCC AR4 (CH₄ = 25). Even a 1% slip materially changes the WtW intensity score that FuelEU Maritime uses. The same hull running the same cargo can produce a 20&ndash;30% different EU bill depending on engine type and slip rate.</p>
                         <p class="text-sm text-secondary leading-relaxed mt-3">FuelEU Maritime measures on a WtW basis from day one (1 January 2025), so the methane question matters there even earlier. The combined pressure means <strong class="text-main">data quality on the methane number is now commercially decisive</strong>, not just nice to have.</p>
                     </div>
 
@@ -2801,7 +3211,7 @@
                                 <span class="text-xs font-semibold px-2 py-0.5 rounded status-phasing">Phasing in</span>
                                 <p class="font-semibold text-sm">EU regional regime</p>
                             </div>
-                            <p class="text-xs text-secondary leading-relaxed"><strong>EU MRV from 1 Jan 2025</strong> for offshore ≥400 GT calling at EEA ports (note: stopping to relieve crew counts as a port call). <strong>EU ETS from 1 Jan 2027</strong> for offshore ≥5000 GT — first surrender 30 Sep 2028. FuelEU applies to offshore that meets its scope criteria.</p>
+                            <p class="text-xs text-secondary leading-relaxed"><strong>EU MRV from 1 Jan 2025</strong> for offshore ≥400 GT calling at EEA ports (note: stopping to relieve crew counts as a port call). <strong>EU ETS from 1 Jan 2027</strong> for offshore ≥5000 GT &mdash; first surrender 30 Sep 2028. <strong>FuelEU applies only where the vessel falls within FuelEU's cargo/passenger commercial transport scope</strong> &mdash; pure offshore work (PSV, AHTS supply, DP standby) is typically outside; shuttle tankers, heavy-lift module transport, and offshore wind component carriers can be inside.</p>
                         </div>
                         <div class="card-bg-deep rounded-lg p-4">
                             <div class="flex items-center gap-2 mb-2">
@@ -2993,8 +3403,8 @@
                                 <p class="wo-text">Regulatorily a soft tool (corrective-action plan only). Commercially a gatekeeper: cargo owners screen on rating, banks discount D/E for green finance, sale-purchase values track ratings.</p>
                             </div>
                             <div class="watchout-card">
-                                <p class="wo-tag">FuelEU pooling market</p>
-                                <p class="wo-text">Compliance surplus is tradeable across operators. An unofficial market at ~&euro;185/tCO₂e is forming. The spread vs €400/tCO₂e penalty is the negotiating room.</p>
+                                <p class="wo-tag">FuelEU pooling (Article 21)</p>
+                                <p class="wo-text">Compliance surplus is poolable across operators via Article 21 arrangements (no central registry, opaque pricing). Indicative pool indication ~&euro;185/tCO₂e vs &euro;2,400/t-VLSFO-eq penalty &mdash; the spread is the negotiating room.</p>
                             </div>
                         </div>
                     </div>
@@ -3014,12 +3424,12 @@
                                 </thead>
                                 <tbody>
                                     <tr><td>EU MRV</td><td><span class="applies-yes">Mature</span></td><td>Reporting baseline</td><td>Source of truth for all EU instruments; verifier review on annual report</td></tr>
-                                    <tr><td>EU ETS</td><td><span class="applies-yes">100% from 2026</span></td><td>Direct surrender cost</td><td>Annual EUA surrender by 30 September N+1; CH₄ + N₂O added 2026</td></tr>
-                                    <tr><td>FuelEU Maritime</td><td><span class="applies-yes">In force since 2025</span></td><td>Direct cost via penalty / pooling</td><td>WtW intensity tightens through 2050; pool price ~&euro;185/tCO₂e vs penalty &euro;400/tCO₂e</td></tr>
-                                    <tr><td>IMO DCS</td><td><span class="applies-yes">Mature</span></td><td>Global reporting</td><td>Annual report by 31 March N+1; feeds IMO data lake</td></tr>
-                                    <tr><td>CII Rating</td><td><span class="applies-yes">Tightens annually</span></td><td>Commercial rating</td><td>Charterer screening; D-rated ships lose preferred-vessel status with many cargo owners</td></tr>
-                                    <tr><td>SEEMP III</td><td><span class="applies-yes">In force since 2023</span></td><td>Documentation</td><td>Implementation plan + 3-yearly verification; proof of CII improvement activity</td></tr>
-                                    <tr><td>IMO NZF</td><td><span class="applies-soon">~2028 (if adopted Dec 2026)</span></td><td>Future direct cost</td><td>Global GFI mechanism Tier 2 ~&euro;92/tCO₂e; extends ETS-style logic worldwide</td></tr>
+                                    <tr><td>EU ETS</td><td><span class="applies-yes">100% from 2026</span></td><td>Direct surrender cost <span class="gov-tag gov-tag-legal">Legal fact</span></td><td>Annual EUA surrender by 30 September N+1; CH₄ + N₂O added 2026</td></tr>
+                                    <tr><td>FuelEU Maritime</td><td><span class="applies-yes">In force since 2025</span></td><td>Direct cost via penalty / pooling <span class="gov-tag gov-tag-legal">Legal fact</span><span class="gov-tag gov-tag-commercial">+ commercial</span></td><td>WtW intensity tightens through 2050; penalty &euro;2,400/t VLSFO-eq if non-compliant <span class="gov-tag gov-tag-legal">Legal fact</span>. Indicative pool value ~&euro;185/tCO₂e <span class="gov-tag gov-tag-commercial">Commercial assumption</span>.</td></tr>
+                                    <tr><td>IMO DCS</td><td><span class="applies-yes">Mature</span></td><td>Global reporting <span class="gov-tag gov-tag-legal">Legal fact</span></td><td>Annual report by 31 March N+1; feeds IMO data lake</td></tr>
+                                    <tr><td>CII Rating</td><td><span class="applies-yes">Tightens annually</span></td><td>Commercial rating <span class="gov-tag gov-tag-legal">Legal fact</span></td><td>Charterer screening; D-rated ships lose preferred-vessel status with many cargo owners</td></tr>
+                                    <tr><td>SEEMP III</td><td><span class="applies-yes">In force since 2023</span></td><td>Documentation <span class="gov-tag gov-tag-legal">Legal fact</span></td><td>Implementation plan + 3-yearly verification; proof of CII improvement activity</td></tr>
+                                    <tr><td>IMO NZF</td><td><span class="applies-soon">~2028 (if adopted Dec 2026)</span></td><td>Future direct cost <span class="gov-tag gov-tag-pending">Pending rule</span></td><td>Global GFI mechanism Tier 2 ~&euro;92/tCO₂e <span class="gov-tag gov-tag-pending">Pending rule</span>; extends ETS-style logic worldwide</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3045,7 +3455,7 @@
                                 <p class="text-[11px] text-secondary leading-relaxed">Charterer is the regulated entity directly &mdash; no pass-through needed. Cleanest structure regulatorily but rarest commercially.</p>
                             </div>
                         </div>
-                        <p class="text-[11px] text-muted mt-3 leading-relaxed">A negotiated item that's often overlooked: <strong class="text-main">FuelEU compliance surplus ownership</strong>. A vessel running B30 generates surplus measurable in tCO₂e with market value (~&euro;185/tCO₂e under Article 21 pooling). Default ownership accrues to the DOC holder; specific allocation needs to be written in.</p>
+                        <p class="text-[11px] text-muted mt-3 leading-relaxed">A negotiated item that's often overlooked: <strong class="text-main">FuelEU compliance surplus ownership</strong>. A vessel running B30 generates surplus measurable in tCO₂e with indicative pool value (~&euro;185/tCO₂e under Article 21 pooling &mdash; opaque, brokered, not a published index). Default ownership accrues to the DOC holder; specific allocation needs to be written into the charter party.</p>
                     </div>
 
                     <div class="card-bg rounded-lg shadow-glow p-4 md:p-6">
@@ -3075,7 +3485,68 @@
         <section id="view-hidden" class="view-section">
             <div class="card-bg rounded-lg shadow-glow p-4 md:p-6 mb-6">
                 <h2 class="text-lg font-bold mb-1">Hidden Factors Most Overviews Miss</h2>
-                <p class="text-xs text-secondary">The slow-and-observant view. Each card flags an interaction or boundary case that doesn't surface in regulation-by-regulation summaries.</p>
+                <p class="text-xs text-secondary mb-3">The slow-and-observant view. Each card flags an interaction or boundary case that doesn't surface in regulation-by-regulation summaries.</p>
+
+                <!-- Governance legend — read this first so every claim across the atlas
+                     is interpreted with the right epistemic status. -->
+                <div class="gov-legend">
+                    <span class="gov-legend-intro">Claims on this atlas fall into three categories:</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-legal">Legal fact</span>adopted &amp; in force, sourceable</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-pending">Pending rule</span>draft / in adoption &mdash; scenario only</span>
+                    <span class="gov-legend-item"><span class="gov-tag gov-tag-commercial">Commercial assumption</span>price / pooling / charter / fuel premium</span>
+                </div>
+
+                <!-- GWP reference table — the same molecule converts to different
+                     CO₂-equivalent depending on which regulation does the conversion.
+                     There is no single right GWP value; treat per-regulation values as
+                     the source of truth. -->
+                <div class="card-bg-deep rounded-lg p-3 mb-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-2">
+                        <p class="text-[10px] uppercase text-sky-400 tracking-wider font-semibold">GWP reference</p>
+                        <span class="gov-tag gov-tag-legal">Legal fact</span>
+                        <p class="text-[10px] text-muted ml-auto italic">Avoid one universal GWP value &mdash; each regulation specifies its own.</p>
+                    </div>
+                    <p class="text-[11px] text-secondary leading-relaxed mb-2">Methane (CH₄) and nitrous oxide (N₂O) get converted to CO₂-equivalent using a Global Warming Potential factor. <strong>The factor is not the same across regulations</strong> &mdash; mixing them is one of the most common technical errors in commercial cost models.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[11px]" style="border-collapse:collapse">
+                            <thead>
+                                <tr style="background:rgba(56,189,248,0.08); border-bottom:1px solid rgba(56,189,248,0.2)">
+                                    <th class="text-left py-1.5 px-2 text-sky-400 font-semibold">Regulation</th>
+                                    <th class="text-left py-1.5 px-2 text-sky-400 font-semibold">CH₄ (GWP-100)</th>
+                                    <th class="text-left py-1.5 px-2 text-sky-400 font-semibold">N₂O (GWP-100)</th>
+                                    <th class="text-left py-1.5 px-2 text-sky-400 font-semibold">Reference framework</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                                    <td class="py-1.5 px-2 text-main font-semibold">EU MRV / EU ETS</td>
+                                    <td class="py-1.5 px-2 text-main">28</td>
+                                    <td class="py-1.5 px-2 text-main">265</td>
+                                    <td class="py-1.5 px-2 text-secondary">IPCC AR5 (used in (EU) 2023/957)</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                                    <td class="py-1.5 px-2 text-main font-semibold">FuelEU Maritime</td>
+                                    <td class="py-1.5 px-2 text-main">28</td>
+                                    <td class="py-1.5 px-2 text-main">265</td>
+                                    <td class="py-1.5 px-2 text-secondary">IPCC AR5 (via implementing regulation; aligned with RED-II GHG accounting)</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                                    <td class="py-1.5 px-2 text-main font-semibold">IMO DCS / SEEMP context</td>
+                                    <td class="py-1.5 px-2 text-main">25</td>
+                                    <td class="py-1.5 px-2 text-main">298</td>
+                                    <td class="py-1.5 px-2 text-secondary">IPCC AR4 (legacy MARPOL-era documentation)</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-1.5 px-2 text-main font-semibold">IMO NZF GFI (if adopted)</td>
+                                    <td class="py-1.5 px-2 text-main">28*</td>
+                                    <td class="py-1.5 px-2 text-main">265*</td>
+                                    <td class="py-1.5 px-2 text-secondary">Expected to align with AR5; final values pending adoption</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-[10px] text-muted leading-relaxed mt-2">For LNG dual-fuel scenarios with non-trivial methane slip, the AR4 vs AR5 difference (25 → 28) shifts the CH₄ share of the ETS bill by ~12%. The same vessel can produce a noticeably different surrender obligation depending on which GWP framework the verifier applies.</p>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="hidden-factors-grid">
@@ -3329,31 +3800,37 @@
         // HIDDEN FACTORS DATA
         // ============================================================================
         const hiddenFactors = [
-            { key:'metric-scope', tag: 'METRIC SCOPE', title: 'Tank-to-Wake vs Well-to-Wake — same molecule, different price tags',
+            { key:'fueleu-eea-norway', tag: 'EEA WRINKLE', gov: 'legal', title: 'FuelEU is NOT yet in force in Norway and Iceland',
+              body: '"EEA" is not equal to "FuelEU scope" today. The FuelEU Maritime Regulation is an EU regulation that requires incorporation into the EEA Agreement before it binds Norway, Iceland, and Liechtenstein. As of late 2025 / 2026 that incorporation is still pending &mdash; meaning Norwegian and Icelandic ports may continue to be treated as third-country ports for FuelEU scoping (so a voyage Stavanger → Bergen would not necessarily count as intra-EEA for FuelEU purposes, even though it does count for EU ETS via the separate ETS Directive carve-in). This is the most material caveat for Norway-based fleet operators &mdash; the calculator on this page treats Norwegian/Icelandic ports as in-EEA, which is the conservative (worst-case) assumption. Verify with flag State and verifier before contractual commitments.' },
+            { key:'geography-not-one', tag: 'GEOGRAPHY', gov: 'legal', title: 'Each regime uses a different map &mdash; "EU/EEA voyage" is not one thing',
+              body: 'EU ETS scope: EU/EEA port calls and voyage shares per Directive 2003/87/EC. EU MRV: EEA port calls per Regulation (EU) 2015/757. FuelEU: similar to EU ETS scope, with the Norway/Iceland EEA incorporation wrinkle above. SOx and NOx ECAs: physical air-pollution zones (Med SECA, North Sea SECA, Baltic SECA, North American ECA, Canadian Arctic NECA from 2026). IMO NZF: global if adopted. These five regimes share words ("port", "voyage", "EU") but use different geographic logic. The same Stavanger → Aberdeen voyage hits EU ETS (50% share), enters the North Sea SECA on fuel sulphur, lives in MRV scope, may or may not bind FuelEU depending on the EEA wrinkle, and would face NZF if/when adopted. A single map cannot represent any one of them honestly &mdash; the calculator deliberately distinguishes ETS, MRV, FuelEU, and ECA logic separately.' },
+            { key:'one-fuel-many-truths', tag: 'DATA INTEGRITY', gov: 'legal', title: 'One fuel number becomes many regulatory truths',
+              body: 'A single litre of fuel burnt on a single voyage produces emissions that get counted differently by each regulation. EU ETS asks: how much Tank-to-Wake CO₂ + CH₄ + N₂O is surrenderable as allowances? FuelEU asks: what is the annual Well-to-Wake GHG intensity (gCO₂e/MJ) of all energy used? IMO CII asks: what is the operational carbon intensity per transport work (capacity × distance)? DNV CII for Offshore asks: what is the intensity per operational mode (DP, transit, port, on-site)? IMO NZF would ask the same TtW emissions in a per-tonne allowance form. The underlying operational data is the same. The risk is that an organisation tracks one regulation\'s answer and assumes it serves the others &mdash; it doesn\'t. The value of an operational data foundation isn\'t calculating "emissions" once; it\'s preserving the context (fuel, voyage, mode, time, port, cargo) so the right answer can be computed for the right regime.' },
+            { key:'metric-scope', tag: 'METRIC SCOPE', gov: 'legal', title: 'Tank-to-Wake vs Well-to-Wake — same molecule, different price tags',
               body: 'EU ETS prices Tank-to-Wake emissions (the CO₂, CH₄, N₂O leaving the funnel). FuelEU and IMO NZF measure Well-to-Wake intensity (including upstream production). A bio-LNG molecule looks identical in TtW to fossil LNG (combustion CO₂ is the same), but in WtW it counts ~80% lower because production emissions are credited. Operators optimising only for ETS miss huge FuelEU wins; the opposite is also true.' },
-            { key:'cost-stacking', tag: 'COST STACKING', title: 'A tonne of CO₂ in EEA can be priced three times',
+            { key:'cost-stacking', gov: 'mixed', tag: 'COST STACKING', title: 'A tonne of CO₂ in EEA can be priced three times',
               body: 'On an intra-EEA voyage in 2028: pay an EUA (~€75), expose to FuelEU penalty (€2,400/t VLSFOeq if non-compliant), and potentially fund an IMO Net-Zero remedial unit (~$100/tCO₂e). The EU has signalled willingness to recalibrate to avoid pure double-pricing, but the offset mechanism is not yet defined. Strategic fleet plans must model the full stack, not just ETS.' },
-            { key:'offshore-cii-denominator', tag: 'OFFSHORE GAP', title: 'CII\'s denominator problem',
+            { key:'offshore-cii-denominator', gov: 'legal', tag: 'OFFSHORE GAP', title: 'CII\'s denominator problem',
               body: 'CII divides annual CO₂ by capacity × distance. A PSV doing 70% DP / 25% transit / 5% in-port has barely any "distance" relative to its work output. The same fuel burn rated against a tiny denominator yields a meaningless intensity. This isn\'t a quirk — it\'s why IMO excluded offshore from CII entirely, and why DNV\'s 5-mode metric had to exist. The deeper question: when the NZF arrives with a per-MJ denominator, does it become the offshore-friendly successor?' },
-            { key:'mixed-denominators', tag: 'SIZING UNITS', title: 'GT, DWT, capacity, bollard pull — beware mixed denominators',
+            { key:'mixed-denominators', gov: 'legal', tag: 'SIZING UNITS', title: 'GT, DWT, capacity, bollard pull — beware mixed denominators',
               body: 'Cargo CII uses DWT × distance (AER). Cruise CII uses GT × distance. EU ETS scopes by GT. FuelEU intensity is energy-based (gCO₂e/MJ), so size-agnostic. DNV CII for Offshore uses GT — except AHTS, which uses tonnes bollard pull. Cross-vessel-type emissions comparison is treacherous; the same gCO₂/(unit×nm) figure can mean very different things.' },
-            { key:'contractual', tag: 'CONTRACTUAL', title: 'Charterer-vs-owner liability splits differently for ETS and FuelEU',
-              body: 'Both regulations name the "shipping company" (typically ISM manager) as the compliance party — but voyage costs are charterers\'. BIMCO publishes EUA and FuelEU clauses for both time and voyage charters. The 2025–2026 charter market is now seeing disputes where charterers refused to transfer EUAs after redelivery, treating allowances as goods under English law (Sale of Goods Act 1979 measure of damages).' },
-            { key:'rfnbo-multiplier', tag: 'INCENTIVE CLIFF', title: 'The 2x RFNBO multiplier expires end-2033',
+            { key:'contractual', gov: 'mixed', tag: 'CONTRACTUAL', title: 'Regulated party is not the same as the economic payer',
+              body: 'Both EU ETS and FuelEU name the "shipping company" (typically the DOC holder / ISM manager) as the regulated party &mdash; that\'s who signs the surrender, files the report, and is legally accountable. But the economic burden often moves elsewhere: voyage fuel costs sit with the charterer, and BIMCO\'s ETSA 2022 and FuelEU 2023 clauses are designed to pass the regulatory cost on contractually <em>where the suitable clauses are included</em> &mdash; not automatically. The same technical vessel scenario can produce very different commercial exposure depending on whether it is owner-operated, time-chartered, voyage-chartered, or bareboat-chartered, and on the specific clauses in the contract. <span class="km-only">For KM commercial positioning, this means the customer\'s pain may be with the owner, manager, charterer, or commercial department &mdash; not necessarily the same party that operates the data system.</span> The 2025&ndash;2026 charter market is already seeing disputes where charterers refused to transfer EUAs after redelivery, treating allowances as goods under English law.' },
+            { key:'rfnbo-multiplier', gov: 'legal', tag: 'INCENTIVE CLIFF', title: 'The 2x RFNBO multiplier expires end-2033',
               body: 'Until 31 Dec 2033, every MJ of e-methanol, e-ammonia, e-LNG, or other Renewable Fuels of Non-Biological Origin counts double in FuelEU compliance calculations. A ship running 5% RFNBO behaves as if running 10%. The cliff: from 1 Jan 2034 the multiplier collapses to 1×. Investment economics for RFNBO production (typically multi-year payback) must price this exit carefully.' },
-            { key:'nzf-limbo', tag: 'IMO LIMBO', title: 'The Net-Zero Framework is a forecast, not a fact',
+            { key:'nzf-limbo', gov: 'pending', tag: 'IMO LIMBO', title: 'The Net-Zero Framework is a forecast, not a fact',
               body: 'Approved at MEPC 83 (Apr 2025), adoption was adjourned at MEPC ES/2 (Oct 2025) by 57–49 vote, after US-led pressure. MEPC 84 (Apr 2026) showed restored momentum. The next vote is at the resumed MEPC ES/2 on 4 Dec 2026. If adopted then, the 16-month tacit acceptance puts entry into force around mid-2028. Many cost models that assume 2027 in-force date should be adjusted.' },
-            { key:'eca-geography', tag: 'GEOGRAPHIC', title: 'New ECAs are tightening operational geography',
+            { key:'eca-geography', gov: 'legal', tag: 'GEOGRAPHIC', title: 'New ECAs are tightening operational geography',
               body: 'Mediterranean SECA active 1 May 2025. Canadian Arctic NECA from 1 Mar 2026, SECA from 1 Mar 2027. Norwegian Sea similar phase-in. North-East Atlantic was on the table at MEPC ES/2 but got swept up in the NZF delay. The 0.10% sulphur limit and Tier III requirements layer in geographically — a ship trading in Northern Europe in 2027 faces sulphur and NOx constraints across most of its operating area.' },
-            { key:'methane-trap', tag: 'METHANE TRAP', title: 'LNG\'s 2026 inflection',
+            { key:'methane-trap', gov: 'legal', tag: 'METHANE TRAP', title: 'LNG\'s 2026 inflection',
               body: 'LNG dual-fuel ships have been the ETS-arbitrage darlings since 2024 — they emit ~25% less CO₂ than conventional fuels in TtW terms. From 1 Jan 2026, CH₄ and N₂O enter ETS scope. Methane slip from low-pressure dual-fuel engines now has a price. The same vessel that looked excellent in the 2024–2025 ETS regime may price quite differently in 2026, depending on engine type (high-pressure 2-stroke Otto vs low-pressure 4-stroke).' },
-            { key:'port-of-call', tag: 'PORT DEFINITION', title: '"Port of call" for offshore includes crew-change ports',
+            { key:'port-of-call', gov: 'legal', tag: 'PORT DEFINITION', title: '"Port of call" for offshore includes crew-change ports',
               body: 'Directive (EU) 2023/959 defines "port of call" for offshore ships as including the port where the vessel stops to relieve crew. This widens the EEA emissions catchment substantially for North Sea, Norwegian Sea, and Med fields with rotating crew. A vessel servicing a field via Stavanger crew-change is in scope; the same vessel returning to a non-EEA port for crew rotation may not be.' },
-            { key:'cii-teeth', tag: 'CII TEETH', title: 'CII\'s only sanction is reputational — for now',
+            { key:'cii-teeth', gov: 'legal', tag: 'CII TEETH', title: 'CII\'s only sanction is reputational — for now',
               body: 'A D-for-3 or E-for-1 ship needs only a corrective action plan in SEEMP III — no fine, no port refusal, no certificate withdrawal. The actual penalty is commercial: charterers prefer A/B ships; banks discount D/E for green-finance; insurance and sale-purchase values track ratings. The IMO 2026 review may add operational restrictions, but legally CII is still a soft tool.' },
-            { key:'fueleu-pooling', tag: 'POOLING MARKET', title: 'FuelEU pooling is creating an unofficial compliance-unit market',
-              body: 'FuelEU allows pooling of compliance balances across vessels of different operators. Over-compliant LNG and methanol ships are selling their surplus to under-compliant operators. Anthony Veder LNG carriers joined Gasum\'s pool as surplus generators. Pricing is opaque — but a market is forming. Watch for an emerging FuelEU broker ecosystem akin to EUA traders.' },
-            { key:'gt-review-window', tag: 'REVIEW WINDOW', title: 'The 400–5,000 GT review by Dec 2026 could re-scope offshore',
+            { key:'fueleu-pooling', gov: 'commercial', tag: 'POOLING (Article 21)', title: 'FuelEU pooling is commercial arrangements &mdash; not an exchange-traded market',
+              body: 'FuelEU allows pooling of compliance balances across vessels of different operators under Article 21. Over-compliant LNG and methanol ships can transfer surplus to under-compliant operators within those pooling arrangements. <strong>There is no central EU registry and surplus cannot be freely exchange-traded</strong> &mdash; it moves only through Article 21 pools, typically brokered. Pricing is opaque and varies by counterparty. The ~&euro;185/tCO₂e figure commonly cited is an illustrative market indication observed in Q1 2026, not a published index. Treat it as commercial intelligence with a date stamp, not as a benchmark fact.' },
+            { key:'gt-review-window', gov: 'pending', tag: 'REVIEW WINDOW', title: 'The 400–5,000 GT review by Dec 2026 could re-scope offshore',
               body: 'Many smaller offshore vessels (PSVs ~3,500 GT, AHTS ~3,800 GT, OCVs near the line) sit in the EU 400–5,000 GT band where MRV applies but ETS / FuelEU do not. The European Commission must review this band by 31 December 2026 and may either confirm the exclusion, extend the scope downward, or set a new threshold. Investment decisions for newbuild offshore vessels in this size class need to model both outcomes — a 5,000 GT threshold preserved (status quo) or a 400 GT threshold extended (a substantially bigger bill).' }
         ];
 
@@ -3426,6 +3903,7 @@
         };
         const ALL_SEGMENTS = ['merchant','lng','offshore','cruise','fishing','special','warship'];
         const tabSegmentSupport = {
+            'm101':        ALL_SEGMENTS.concat(['all']),                  // Educational page — segment-agnostic content
             'start':       ALL_SEGMENTS.concat(['all']),
             'playground':  ALL_SEGMENTS,                                  // Calculator handles every segment
             'universe':    ALL_SEGMENTS.concat(['all']),                  // Reference views allow "all"
@@ -4279,11 +4757,24 @@
         function renderHiddenFactors() {
             const grid = document.getElementById('hidden-factors-grid');
             if (grid.children.length > 0) return;
+            // Renders the small "Legal fact / Pending rule / Commercial assumption"
+            // badge(s) for a factor — 'mixed' means the factor contains claims from
+            // more than one category, so we show both badges.
+            const govBadge = gov => {
+                if (gov === 'legal')       return '<span class="gov-tag gov-tag-legal">Legal fact</span>';
+                if (gov === 'pending')     return '<span class="gov-tag gov-tag-pending">Pending rule</span>';
+                if (gov === 'commercial')  return '<span class="gov-tag gov-tag-commercial">Commercial assumption</span>';
+                if (gov === 'mixed')       return '<span class="gov-tag gov-tag-legal">Legal fact</span><span class="gov-tag gov-tag-commercial">+ commercial</span>';
+                return '';
+            };
             hiddenFactors.forEach(f => {
                 const card = document.createElement('div');
                 card.className = 'card-bg rounded-lg p-5 shadow-glow hover:shadow-lg transition-shadow';
                 card.innerHTML = `
-                    <p class="text-[10px] font-semibold text-sky-400 uppercase tracking-wider mb-2">${f.tag}</p>
+                    <div class="flex items-center gap-2 flex-wrap mb-2">
+                        <p class="text-[10px] font-semibold text-sky-400 uppercase tracking-wider">${f.tag}</p>
+                        ${govBadge(f.gov)}
+                    </div>
                     <h3 class="text-base font-bold mb-2 text-main">${f.title}</h3>
                     <p class="text-sm text-secondary leading-relaxed">${f.body}</p>
                 `;
@@ -4600,7 +5091,12 @@
             biofuelPct: 0,
             speedReduction: 0,
             // Commercial structure (TCP = Time Charter Party, etc.) — affects who bears the bill
-            charterStructure: 'time'
+            charterStructure: 'time',
+            // Whether to include the IMO Net-Zero Framework in cost calculations.
+            // NZF is a Pending rule — adoption vote scheduled for Dec 2026, in force ~2028 if adopted.
+            // Default ON so the 2028 scenario shows the modelled NZF layer; user can toggle OFF
+            // to see "2028 without NZF" for a more conservative reading.
+            includeNzf: true
         };
 
         // ============================================================================
@@ -4939,8 +5435,11 @@
             }
 
             if (gt >= 5000) {
-                if (year >= 2028) {
-                    out.push({ name:'IMO Net-Zero Framework', status:'applies', note:'Assumed adopted Dec 2026 → in force ~2028; GFI fuel-intensity standard with carbon pricing' });
+                if (pgState.includeNzf === false) {
+                    // User has explicitly excluded NZF from this scenario
+                    out.push({ name:'IMO Net-Zero Framework', status:'na', note:'Excluded from this scenario — toggle "Include" to model the NZF layer (pending rule, vote Dec 2026)' });
+                } else if (year >= 2028) {
+                    out.push({ name:'IMO Net-Zero Framework', status:'applies', note:'Scenario: assumed adopted Dec 2026 → in force ~2028; GFI fuel-intensity standard with carbon pricing (PENDING RULE)' });
                 } else {
                     out.push({ name:'IMO Net-Zero Framework', status:'pending', note:'Vote postponed to Dec 2026; if adopted, ~16-month tacit acceptance' });
                 }
@@ -5022,7 +5521,9 @@
             const fueleu = fueleuBase * mit.fueleuFactor;
 
             let nzfBase = 0;
-            if (year >= 2028 && gt >= 5000 && scope.nzf) {
+            // Respect the user's NZF scenario toggle — when off, NZF is excluded from
+            // the cost stack regardless of year. NZF is a Pending rule.
+            if (year >= 2028 && gt >= 5000 && scope.nzf && pgState.includeNzf !== false) {
                 nzfBase = baselineCO2e * 0.25 * 92;
             }
             const nzf = nzfBase * mit.nzfFactor;
@@ -5468,6 +5969,27 @@
                 ecaInfoBtn.addEventListener('click', () => {
                     pgEcaVisible = !pgEcaVisible;
                     pgApplyEcaVisibility();
+                });
+            }
+
+            // Norway / Iceland FuelEU caveat — independent expand/collapse.
+            // Pattern mirrors the ECA toggle above but doesn't touch the map.
+            const noreeaBtn = document.getElementById('pg-noreea-info-toggle');
+            if (noreeaBtn) {
+                noreeaBtn.addEventListener('click', () => {
+                    const body = document.getElementById('pg-noreea-info-body');
+                    const icon = document.getElementById('pg-noreea-info-icon');
+                    if (!body) return;
+                    const isHidden = body.classList.contains('hidden');
+                    if (isHidden) {
+                        body.classList.remove('hidden');
+                        if (icon) icon.textContent = '−';
+                        noreeaBtn.title = 'Collapse';
+                    } else {
+                        body.classList.add('hidden');
+                        if (icon) icon.textContent = '+';
+                        noreeaBtn.title = 'Expand FuelEU/EEA note';
+                    }
                 });
             }
         }
@@ -6248,7 +6770,7 @@
                 frequency:'Per event'
             });
 
-            // ----- IMO NZF GFI report (assumed adopted from 2028) -----
+            // ----- IMO NZF GFI report (scenario only — if adopted Dec 2026 → in force ~2028) -----
             if (year >= 2028 && gt >= 5000) {
                 out.push({
                     kind:'imo',
@@ -6493,6 +7015,8 @@
             renderShMeetingCard();
             // At-a-glance compact stats row in the same card
             renderShAtAGlance();
+            // Header-level cost figure (page title + Scenario result step heading)
+            renderShHeaderCost();
             // Year buttons sync
             document.querySelectorAll('.year-btn').forEach(b => {
                 b.classList.toggle('active', parseInt(b.dataset.yr) === parseInt(pgState.year));
@@ -6547,9 +7071,7 @@
             const regs = pgApplicableRegs();
             const appliesRegs = regs.filter(r => r.status === 'applies' || r.status === 'phasing' || r.status === 'pending');
             const c = pgCostStack();
-            const fmtEur = v => v >= 1e6 ? '\u20AC' + (v/1e6).toFixed(2) + 'M' : v >= 1e3 ? '\u20AC' + Math.round(v/1e3) + 'k' : '\u20AC' + Math.round(v);
-
-            // Threshold / band
+            const fmtEur = v => v >= 1e6 ? '\u20AC' + (v/1e6).toFixed(2) + 'M' : v >= 1e3 ? '\u20AC' + Math.round(v/1e3) + 'k' : '\u20AC' + Math.round(v);            // Threshold / band
             let band;
             if (sg === 'fishing')      band = '<span class="ag-val" style="color:#94A3B8">Out of scope</span>';
             else if (sg === 'special') band = '<span class="ag-val" style="color:#94A3B8">Out of scope</span>';
@@ -6558,13 +7080,13 @@
             else if (gt < 5000)        band = '<span class="ag-val" style="color:#FBBF24">400&ndash;5,000 GT band</span>';
             else                       band = '<span class="ag-val" style="color:#FB923C">&ge; 5,000 GT bracket</span>';
 
-            // Bill (compact)
+            // Bill (compact, but visually prominent — ag-val-bill class bumps size + weight)
             let bill;
-            if (c.total > 0)               bill = '<span class="ag-val" style="color:#38BDF8">' + fmtEur(c.total) + ' / yr</span>';
-            else if (sg === 'fishing' || sg === 'special' || sg === 'warship') bill = '<span class="ag-val" style="color:#94A3B8">&euro;0 (exempt)</span>';
-            else if (gt < 400)             bill = '<span class="ag-val" style="color:#6B7F9F">Outside scope</span>';
-            else if (gt < 5000)            bill = '<span class="ag-val" style="color:#FBBF24">Monitoring only</span>';
-            else                           bill = '<span class="ag-val text-muted">No exposure yet</span>';
+            if (c.total > 0)               bill = '<span class="ag-val ag-val-bill" style="color:#38BDF8">' + fmtEur(c.total) + ' / yr</span>';
+            else if (sg === 'fishing' || sg === 'special' || sg === 'warship') bill = '<span class="ag-val ag-val-bill" style="color:#94A3B8">&euro;0 (exempt)</span>';
+            else if (gt < 400)             bill = '<span class="ag-val ag-val-bill" style="color:#6B7F9F">Outside scope</span>';
+            else if (gt < 5000)            bill = '<span class="ag-val ag-val-bill" style="color:#FBBF24">Monitoring only</span>';
+            else                           bill = '<span class="ag-val ag-val-bill text-muted">No exposure yet</span>';
 
             el.innerHTML =
                 '<span><span class="ag-label">Threshold</span>' + band + '</span>' +
@@ -6572,6 +7094,47 @@
                 '<span><span class="ag-label">Regulations</span><span class="ag-val">' + appliesRegs.length + ' of ' + regs.length + ' relevant</span></span>' +
                 '<span class="ag-sep">&middot;</span>' +
                 '<span><span class="ag-label">Estimated bill</span>' + bill + '</span>';
+        }
+
+        // Header-level cost display — populates the small cost figure next to the
+        // page title ("Vessel scenario — €X/yr") and the step heading ("Scenario
+        // result — €X/yr"). Lets the user see the bottom-line number without
+        // scrolling. Reuses the same status logic as the at-a-glance bill so the
+        // wording (Monitoring only / Outside scope / Exempt) stays consistent.
+        function renderShHeaderCost() {
+            const pageEl   = document.getElementById('sh-page-cost');
+            const resultEl = document.getElementById('sh-result-cost');
+            if (!pageEl && !resultEl) return;
+            const p = pgPreset();
+            const sg = pgState.segment;
+            const gt = p.gt || 0;
+            const c = pgCostStack();
+            const fmtEur = v => v >= 1e6 ? '\u20AC' + (v/1e6).toFixed(2) + 'M' : v >= 1e3 ? '\u20AC' + Math.round(v/1e3) + 'k' : '\u20AC' + Math.round(v);
+
+            let text, mod;
+            if (c.total > 0) {
+                text = '— ' + fmtEur(c.total) + ' / yr';
+                mod = '';                     // sky-blue (default)
+            } else if (sg === 'fishing' || sg === 'special' || sg === 'warship') {
+                text = '— Exempt';
+                mod = 'sh-header-cost-muted';
+            } else if (gt < 400) {
+                text = '— Outside scope';
+                mod = 'sh-header-cost-muted';
+            } else if (gt < 5000) {
+                text = '— Monitoring only';
+                mod = 'sh-header-cost-warn';  // amber
+            } else {
+                text = '— No exposure yet';
+                mod = 'sh-header-cost-muted';
+            }
+
+            [pageEl, resultEl].forEach(el => {
+                if (!el) return;
+                el.textContent = text;
+                el.classList.remove('sh-header-cost-muted', 'sh-header-cost-warn');
+                if (mod) el.classList.add(mod);
+            });
         }
 
         // Briefing talk track: a single read-aloud sentence summarising
@@ -6590,11 +7153,13 @@
             const fmtEur = v => v >= 1e6 ? '€' + (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? '€' + Math.round(v/1e3) + 'k' : '€' + Math.round(v);
 
             // [X] Main commercial exposure
+            // The cost figure gets the .exposure-num class so it pops out of the
+            // surrounding prose — bottom-line numbers are what most readers scan for.
             let mainExposure;
             if (exempt) {
                 mainExposure = '<strong>essentially zero direct regulatory cost</strong> (activity-based carve-out), with the commercial question being fuel cost and operational efficiency';
             } else if (c.total > 0) {
-                mainExposure = 'around <strong>' + fmtEur(c.total) + ' per year</strong> in indicative regulatory cost for ' + pgState.year;
+                mainExposure = 'around <span class="exposure-num">' + fmtEur(c.total) + ' / yr</span> in indicative regulatory cost for ' + pgState.year;
             } else if (p.gt < 5000 && p.gt >= 400) {
                 mainExposure = '<strong>reporting only</strong> in ' + pgState.year + ' &mdash; MRV applies but ETS / FuelEU do not yet, pending the EU 400&ndash;5,000 GT band review';
             } else if (p.gt < 400) {
@@ -6649,7 +7214,7 @@
             }[seg] || 'data capture, structured reporting, operational insight, and fleet-level visibility';
 
             // Compose
-            el.innerHTML = 'For this <strong>' + segLabel + '</strong> vessel scenario (' + p.name + ' on a ' + op.name + ' operation in ' + pgState.year + '), the main commercial exposure is ' + mainExposure + '. The key regulatory drivers are ' + driversText + '. The likely economic carrier is ' + carrier + ', subject to specific contract terms. <strong style="color:#38BDF8">KM can support</strong> by providing ' + kmSupport + '.';
+            el.innerHTML = 'For this <strong>' + segLabel + '</strong> vessel scenario (' + p.name + ' on a ' + op.name + ' operation in ' + pgState.year + '), the main commercial exposure is ' + mainExposure + '. The key regulatory drivers are ' + driversText + '. The likely economic carrier is ' + carrier + ', subject to specific contract terms. <span class="km-only"><strong style="color:#38BDF8">KM can support</strong> by providing ' + kmSupport + '.</span>';
         }
 
         function renderShCharterPills() {
@@ -6805,8 +7370,8 @@
             const p = pgPreset();
             const seg = pgState.segment;
             if (c.ets > 0)    drivers.push('<li><strong class="text-main">EU ETS allowance surrender</strong> &mdash; &euro;' + Math.round(c.ets/1e3) + 'k/yr at ~&euro;75/t EUA</li>');
-            if (c.fueleu > 0) drivers.push('<li><strong class="text-main">FuelEU intensity gap</strong> &mdash; &euro;' + Math.round(c.fueleu/1e3) + 'k/yr penalty (or pooling cost ~&euro;185/tCO₂e)</li>');
-            if (c.nzf > 0)    drivers.push('<li><strong class="text-main">IMO NZF GFI charge</strong> &mdash; &euro;' + Math.round(c.nzf/1e3) + 'k/yr (Tier 2 ~&euro;92/tCO₂e from 2028, if adopted)</li>');
+            if (c.fueleu > 0) drivers.push('<li><strong class="text-main">FuelEU intensity gap</strong> <span class="gov-tag gov-tag-legal">Legal fact</span> &mdash; &euro;' + Math.round(c.fueleu/1e3) + 'k/yr penalty (or pooling cost ~&euro;185/tCO₂e <span class="gov-tag gov-tag-commercial">Commercial assumption</span>)</li>');
+            if (c.nzf > 0)    drivers.push('<li><strong class="text-main">IMO NZF GFI charge</strong> <span class="gov-tag gov-tag-pending">Pending rule</span> &mdash; &euro;' + Math.round(c.nzf/1e3) + 'k/yr (Tier 2 ~&euro;92/tCO₂e from 2028, if adopted)</li>');
             if (p.lngFuel && parseInt(pgState.year) >= 2026) drivers.push('<li><strong class="text-main">Methane slip pricing from 2026</strong> &mdash; CH₄/N₂O enter ETS; LNG\'s TtW advantage narrows</li>');
             if (seg === 'offshore') drivers.push('<li><strong class="text-main">Mode-based emissions</strong> &mdash; DP, standby, transit, in-port, jack-up profiles drive the bill, not transport-work</li>');
             if (seg === 'fishing' || seg === 'special' || seg === 'warship') {
@@ -7154,10 +7719,12 @@
                 });
             });
 
-            // Mode toggle (Briefing / Full Atlas). Defaults to Briefing.
-            document.body.setAttribute('data-mode', 'briefing');
+            // View-mode toggle removed — all tabs and content are now visible at all times.
+            // We still set body[data-mode] because the KM Bridge drawer CSS reads it for
+            // its compact-pill layout; locking it to "atlas" keeps the small pill style.
+            document.body.setAttribute('data-mode', 'atlas');
             // Track active tab on body so CSS can size the KM Bridge drawer per tab
-            document.body.setAttribute('data-active-tab', 'start');
+            document.body.setAttribute('data-active-tab', 'm101');
 
             // Initialise every lens to reflect the default scenario segment
             // (so all five lens copies show the same active state on first paint).
@@ -7204,34 +7771,41 @@
                         strip.scrollLeft += e.deltaY;
                     }
                 }, { passive: false });
+            })();
 
-                // Re-check overflow flags when the mode toggle changes (tabs appear/disappear)
-                document.querySelectorAll('#mode-toggle .mode-btn').forEach(btn => {
-                    btn.addEventListener('click', () => setTimeout(updateOverflowFlags, 60));
+            // ---- Secret KM/Kongsberg content toggle -----------------------------
+            // Default state: every element tagged .km-only is hidden (see the
+            // bootstrap script in <head> and the CSS rule near .km-hero). This
+            // attaches the runtime half of the toggle: typing k, m, k, m anywhere
+            // on the page (outside a text field) flips visibility and remembers
+            // the choice in localStorage. The other entry point — the URL
+            // parameter ?km=on / ?km=off — is handled entirely by the bootstrap
+            // script before this code even runs, so both paths share one flag.
+            (function setupKmKeySequence() {
+                const STORAGE_KEY = 'mea_km';
+                const seq = ['k', 'm', 'k', 'm'];
+                let pos = 0;
+                document.addEventListener('keydown', e => {
+                    // Don't hijack the sequence while the person is typing somewhere
+                    const tag = (e.target && e.target.tagName || '').toLowerCase();
+                    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
+                    const key = (e.key || '').toLowerCase();
+                    if (key === seq[pos]) {
+                        pos++;
+                        if (pos === seq.length) {
+                            pos = 0;
+                            const html = document.documentElement;
+                            const nowOn = html.getAttribute('data-km') !== 'on';
+                            html.setAttribute('data-km', nowOn ? 'on' : 'off');
+                            try { localStorage.setItem(STORAGE_KEY, nowOn ? '1' : '0'); } catch (err) { /* ignore */ }
+                        }
+                    } else {
+                        // Restart the match — but allow this keypress to itself be the
+                        // first character of a fresh sequence (e.g. typed "kkmkm").
+                        pos = (key === seq[0]) ? 1 : 0;
+                    }
                 });
             })();
-            document.querySelectorAll('#mode-toggle .mode-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('#mode-toggle .mode-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    document.body.setAttribute('data-mode', btn.dataset.mode);
-                    // If the currently-active tab is now hidden (full-atlas-only), fall back to Start here
-                    const activeTab = document.querySelector('.tab-btn.active');
-                    if (activeTab && activeTab.classList.contains('full-atlas-only') && btn.dataset.mode === 'briefing') {
-                        const startTab = document.querySelector('.tab-btn[data-tab="start"]');
-                        if (startTab) startTab.click();
-                    }
-                    // Collapse the drawer when switching modes so the layout transitions cleanly
-                    const drawer = document.getElementById('km-drawer');
-                    if (drawer && drawer.classList.contains('expanded')) {
-                        drawer.classList.remove('expanded');
-                        drawer.classList.add('collapsed');
-                        const toggleLbl = document.getElementById('kmd-toggle-label');
-                        if (toggleLbl) toggleLbl.textContent = 'Expand';
-                        document.getElementById('km-drawer-toggle')?.setAttribute('aria-expanded', 'false');
-                    }
-                });
-            });
 
             // Segment Deep-Dive sub-tabs (LNG / Offshore / Merchant)
             const sdLabels = { lng: 'LNG', offshore: 'Offshore', merchant: 'Merchant' };
@@ -7240,11 +7814,18 @@
             // We pull from the existing hiddenFactors array by key so there's a single
             // source of truth — no duplication.
             const sdHiddenKeysBySegment = {
-                lng:      ['methane-trap',              'metric-scope',             'fueleu-pooling',         'rfnbo-multiplier', 'cost-stacking'],
-                offshore: ['offshore-cii-denominator',  'port-of-call',             'gt-review-window',       'mixed-denominators', 'nzf-limbo'],
-                merchant: ['cost-stacking',             'contractual',              'cii-teeth',              'fueleu-pooling',     'eca-geography']
+                lng:      ['methane-trap',              'metric-scope',             'fueleu-pooling',         'one-fuel-many-truths', 'fueleu-eea-norway'],
+                offshore: ['offshore-cii-denominator',  'port-of-call',             'fueleu-eea-norway',      'gt-review-window',     'geography-not-one'],
+                merchant: ['cost-stacking',             'contractual',              'fueleu-eea-norway',      'one-fuel-many-truths', 'geography-not-one']
             };
             function renderSdHiddenFactors() {
+                const govBadge = gov => {
+                    if (gov === 'legal')       return '<span class="gov-tag gov-tag-legal">Legal fact</span>';
+                    if (gov === 'pending')     return '<span class="gov-tag gov-tag-pending">Pending rule</span>';
+                    if (gov === 'commercial')  return '<span class="gov-tag gov-tag-commercial">Commercial assumption</span>';
+                    if (gov === 'mixed')       return '<span class="gov-tag gov-tag-legal">Legal fact</span><span class="gov-tag gov-tag-commercial">+ commercial</span>';
+                    return '';
+                };
                 for (const seg of Object.keys(sdHiddenKeysBySegment)) {
                     const container = document.querySelector('[data-sd-hidden="' + seg + '"]');
                     if (!container) continue;
@@ -7252,7 +7833,10 @@
                     const factors = keys.map(k => hiddenFactors.find(f => f.key === k)).filter(Boolean);
                     container.innerHTML = factors.map(f =>
                         '<div class="card-bg-deep rounded-lg p-3 border-l-2 border-sky-400">' +
-                          '<p class="text-[10px] uppercase text-sky-400 tracking-wider font-semibold mb-1">' + f.tag + '</p>' +
+                          '<div class="flex items-center gap-1 flex-wrap mb-1">' +
+                            '<p class="text-[10px] uppercase text-sky-400 tracking-wider font-semibold">' + f.tag + '</p>' +
+                            govBadge(f.gov) +
+                          '</div>' +
                           '<p class="text-sm font-semibold text-main mb-1">' + f.title + '</p>' +
                           '<p class="text-[11px] text-secondary leading-relaxed">' + f.body + '</p>' +
                         '</div>'
@@ -7289,22 +7873,39 @@
             // Initial render so Step 4 has values from the default state
             renderStartHere();
 
-            // Show / hide Scenario Result detail block (regulation table, cost drivers,
-            // commercial interpretation). Collapsed by default so the headline answer
-            // (talk track, selected case, tiles, exposure split) is what's seen first.
-            const shDetailToggle = document.getElementById('sh-detail-toggle');
-            const shDetailBlock  = document.getElementById('sh-scenario-detail');
-            shDetailToggle?.addEventListener('click', () => {
-                const wasExpanded = shDetailToggle.getAttribute('aria-expanded') === 'true';
-                const nowExpanded = !wasExpanded;
-                shDetailToggle.setAttribute('aria-expanded', nowExpanded ? 'true' : 'false');
-                shDetailToggle.querySelector('.sh-detail-toggle-icon').textContent = nowExpanded ? '−' : '+';
-                shDetailToggle.querySelector('.sh-detail-toggle-label').textContent = nowExpanded ? 'Hide full detail' : 'Show full detail';
-                if (nowExpanded) {
-                    shDetailBlock.removeAttribute('hidden');
-                } else {
-                    shDetailBlock.setAttribute('hidden', '');
-                }
+            // Show / hide collapsible detail block for Scenario Result — supporting
+            // detail (threshold tiles, cost split, regulations table, drivers).
+            // (The Maritime Emissions 101 responsibility table used to share this
+            // pattern but is now always visible, no toggle needed.)
+            [
+                { toggleId: 'sh-detail-toggle',   blockId: 'sh-scenario-detail',
+                  showLabel: 'Show full detail',                   hideLabel: 'Hide full detail' }
+            ].forEach(({ toggleId, blockId, showLabel, hideLabel }) => {
+                const toggle = document.getElementById(toggleId);
+                const block  = document.getElementById(blockId);
+                if (!toggle || !block) return;
+                toggle.addEventListener('click', () => {
+                    const wasExpanded = toggle.getAttribute('aria-expanded') === 'true';
+                    const nowExpanded = !wasExpanded;
+                    toggle.setAttribute('aria-expanded', nowExpanded ? 'true' : 'false');
+                    toggle.querySelector('.sh-detail-toggle-icon').textContent = nowExpanded ? '−' : '+';
+                    toggle.querySelector('.sh-detail-toggle-label').textContent = nowExpanded ? hideLabel : showLabel;
+                    if (nowExpanded) {
+                        block.removeAttribute('hidden');
+                    } else {
+                        block.setAttribute('hidden', '');
+                    }
+                });
+            });
+
+            // Maritime Emissions 101 — clickable regulation names in the responsibility
+            // table. Reuses the exact same modal as the Phase-in Timeline (showRegModal),
+            // so clicking "EU ETS" here opens the identical detail popup.
+            document.querySelectorAll('.reg-table-link[data-reg-id]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const regId = btn.dataset.regId;
+                    if (regId && typeof showRegModal === 'function') showRegModal(regId);
+                });
             });
 
             // KM Bridge drawer wiring
@@ -7358,6 +7959,20 @@
                 btn.classList.add('active');
                 pgState.build = btn.dataset.build;
                 pgRenderAll();
+            });
+        });
+
+        // IMO NZF scenario toggle — explicit user choice to include/exclude the
+        // pending NZF layer in cost calculations. When off, pgCostStack returns
+        // 0 for the NZF component regardless of year; pgApplicableRegs marks
+        // NZF as 'na' rather than 'phasing'/'applies'.
+        document.querySelectorAll('.nzf-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nzf-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                pgState.includeNzf = (btn.dataset.nzf === 'on');
+                pgRenderAll();
+                if (typeof renderStartHere === 'function') renderStartHere();
             });
         });
 
@@ -7447,7 +8062,7 @@
          Expands upward (not modal) to show the full KM bridge summary.
          Updates automatically when the selected segment changes in Start Here.
     ============================================================================== -->
-    <div id="km-drawer" class="km-drawer collapsed" aria-label="Kongsberg Maritime relevance drawer">
+    <div id="km-drawer" class="km-drawer collapsed km-only" aria-label="Kongsberg Maritime relevance drawer">
         <!-- COLLAPSED TOGGLE: same button, two visual layouts (chosen by body[data-mode]) -->
         <button id="km-drawer-toggle" class="km-drawer-bar" aria-expanded="false">
             <!-- Briefing layout: prominent centered card (headline + value statement + chips) -->
